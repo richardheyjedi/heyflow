@@ -34,6 +34,7 @@ function makeTransaction(overrides: Partial<Transaction>): Transaction {
     recurrence: null,
     reminderId: null,
     originTransactionId: null,
+    isGoon: false,
     createdAt: REFERENCE.toISOString(),
     updatedAt: REFERENCE.toISOString(),
     ...overrides,

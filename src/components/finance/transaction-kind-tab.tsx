@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ArrowUpCircle, CheckCircle2, Clock, Plus } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, CheckCircle2, Clock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MetricCard } from "@/components/taskflow/dashboard/metric-card";
 import { CashFlowChart } from "@/components/finance/cash-flow-chart";
@@ -23,23 +23,52 @@ import {
   getTotals,
   isTransactionOverdue,
 } from "@/lib/finance/calculations";
-import { DEFAULT_FILTERS, type Category, type Client, type Transaction, type TransactionFilters } from "@/lib/finance/types";
+import {
+  DEFAULT_FILTERS,
+  type Category,
+  type Client,
+  type Transaction,
+  type TransactionFilters,
+  type TransactionKind,
+} from "@/lib/finance/types";
+
+const KIND_COPY = {
+  receita: {
+    itemLabel: "recebimento",
+    newButtonLabel: "Novo recebimento",
+    chartTitle: "Recebimentos por mês",
+    chartSubtitle: "Só entradas — sem misturar com despesas.",
+    firstKpi: { label: "Recebido", icon: CheckCircle2 },
+    secondKpi: { label: "A receber", icon: ArrowUpCircle },
+  },
+  despesa: {
+    itemLabel: "despesa",
+    newButtonLabel: "Nova despesa",
+    chartTitle: "Despesas por mês",
+    chartSubtitle: "Só saídas — sem misturar com receitas.",
+    firstKpi: { label: "Pago", icon: CheckCircle2 },
+    secondKpi: { label: "A pagar", icon: ArrowDownCircle },
+  },
+} satisfies Record<TransactionKind, unknown>;
 
 /**
- * Aba GOON — recorte "só recebimentos": mostra apenas lançamentos de receita,
- * separado do financeiro geral (que mistura PF/PJ, casa e despesas). Reaproveita
- * os mesmos componentes/Server Actions de Lançamentos, só filtrando por kind.
+ * Recorte "só recebimentos" ou "só despesas" — reaproveita os mesmos
+ * componentes/Server Actions de Lançamentos, filtrando por `kind`, para não
+ * misturar entradas e saídas na mesma tabela.
  */
-export function GoonTab({
+export function TransactionKindTab({
+  kind,
   transactions,
   clients,
   categories,
 }: {
+  kind: TransactionKind;
   transactions: Transaction[];
   clients: Client[];
   categories: Category[];
 }) {
-  const receitas = useMemo(() => transactions.filter((t) => t.kind === "receita"), [transactions]);
+  const copy = KIND_COPY[kind];
+  const scoped = useMemo(() => transactions.filter((t) => t.kind === kind), [transactions, kind]);
 
   const [filters, setFilters] = useState<TransactionFilters>({ ...DEFAULT_FILTERS, period: "next_30_days" });
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -49,16 +78,18 @@ export function GoonTab({
   const [isBulkPending, startBulkTransition] = useTransition();
 
   const filtered = useMemo(
-    () => filterTransactions(receitas, filters, new Date(), categories),
-    [receitas, filters, categories]
+    () => filterTransactions(scoped, filters, new Date(), categories),
+    [scoped, filters, categories]
   );
 
-  const totals = useMemo(() => getTotals(receitas), [receitas]);
+  const totals = useMemo(() => getTotals(scoped), [scoped]);
+  const firstKpiCents = kind === "receita" ? totals.totalReceivedCents : totals.totalPaidCents;
+  const secondKpiCents = kind === "receita" ? totals.totalReceivableCents : totals.totalPayableCents;
   const overdueCents = useMemo(
-    () => receitas.filter((t) => isTransactionOverdue(t)).reduce((s, t) => s + t.amountCents, 0),
-    [receitas]
+    () => scoped.filter((t) => isTransactionOverdue(t)).reduce((s, t) => s + t.amountCents, 0),
+    [scoped]
   );
-  const cashFlowSeries = useMemo(() => getCashFlowSeries(receitas, 5), [receitas]);
+  const cashFlowSeries = useMemo(() => getCashFlowSeries(scoped, 5), [scoped]);
 
   const visibleSelectedIds = useMemo(() => {
     const filteredIds = new Set(filtered.map((t) => t.id));
@@ -92,7 +123,7 @@ export function GoonTab({
     const ids = Array.from(visibleSelectedIds);
     startBulkTransition(async () => {
       await markManyFinanceTransactionsPaid(ids);
-      toast.success(`${ids.length} recebimento(s) marcado(s) como pago.`);
+      toast.success(`${ids.length} ${copy.itemLabel}(s) marcado(s) como pago.`);
       setSelectedIds(new Set());
     });
   }
@@ -101,7 +132,7 @@ export function GoonTab({
     const ids = Array.from(visibleSelectedIds);
     startBulkTransition(async () => {
       await markManyFinanceTransactionsUnpaid(ids);
-      toast.success(`${ids.length} recebimento(s) marcado(s) como não pago.`);
+      toast.success(`${ids.length} ${copy.itemLabel}(s) marcado(s) como não pago.`);
       setSelectedIds(new Set());
     });
   }
@@ -110,7 +141,7 @@ export function GoonTab({
     const ids = Array.from(visibleSelectedIds);
     startBulkTransition(async () => {
       await deleteManyFinanceTransactions(ids);
-      toast.success(`${ids.length} recebimento(s) excluído(s).`);
+      toast.success(`${ids.length} ${copy.itemLabel}(s) excluído(s).`);
       setSelectedIds(new Set());
     });
   }
@@ -118,14 +149,14 @@ export function GoonTab({
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MetricCard label="Recebido" value={formatCurrencyBRL(totals.totalReceivedCents)} icon={CheckCircle2} accent="violet" />
-        <MetricCard label="A receber" value={formatCurrencyBRL(totals.totalReceivableCents)} icon={ArrowUpCircle} accent="violet" />
+        <MetricCard label={copy.firstKpi.label} value={formatCurrencyBRL(firstKpiCents)} icon={copy.firstKpi.icon} accent="violet" />
+        <MetricCard label={copy.secondKpi.label} value={formatCurrencyBRL(secondKpiCents)} icon={copy.secondKpi.icon} accent="violet" />
         <MetricCard label="Atrasado" value={formatCurrencyBRL(overdueCents)} icon={Clock} accent="rose" />
       </div>
 
       <div className="rounded-2xl border border-border/70 bg-card/60 p-5">
-        <h2 className="text-sm font-semibold text-foreground">Recebimentos por mês</h2>
-        <p className="mb-2 text-xs text-muted-foreground">Só entradas — sem misturar com despesas.</p>
+        <h2 className="text-sm font-semibold text-foreground">{copy.chartTitle}</h2>
+        <p className="mb-2 text-xs text-muted-foreground">{copy.chartSubtitle}</p>
         <CashFlowChart data={cashFlowSeries} />
       </div>
 
@@ -134,7 +165,7 @@ export function GoonTab({
           <TransactionFiltersBar filters={filters} onChange={(patch) => setFilters((prev) => ({ ...prev, ...patch }))} clients={clients} />
           <Button size="sm" className="bg-gradient-violet glow-violet-sm text-white" onClick={openCreate}>
             <Plus className="size-3.5" />
-            Novo recebimento
+            {copy.newButtonLabel}
           </Button>
         </div>
 
@@ -164,7 +195,7 @@ export function GoonTab({
         editing={editingTransaction}
         clients={clients}
         categories={categories}
-        defaults={{ kind: "receita", scope: "PJ" }}
+        defaults={{ kind, scope: "PJ" }}
         onClose={() => setIsFormOpen(false)}
       />
       <ScheduleChargeDialog transaction={chargeTarget} clients={clients} onClose={() => setChargeTarget(null)} />

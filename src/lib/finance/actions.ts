@@ -24,6 +24,7 @@ export type TransactionInput = {
   paidAt: string | null;
   status: TransactionStatus;
   recurrence: { frequency: RecurrenceFrequency; interval: number; nextDate: string } | null;
+  isGoon: boolean;
 };
 
 function revalidateFinance() {
@@ -50,6 +51,7 @@ export async function createFinanceTransaction(input: TransactionInput) {
       dueDate: new Date(input.dueDate),
       paidAt: input.paidAt ? new Date(input.paidAt) : null,
       status: input.status,
+      isGoon: input.isGoon,
       ...toRecurrenceData(input.recurrence),
     },
   });
@@ -69,6 +71,7 @@ export async function updateFinanceTransaction(id: string, input: TransactionInp
       dueDate: new Date(input.dueDate),
       paidAt: input.paidAt ? new Date(input.paidAt) : null,
       status: input.status,
+      isGoon: input.isGoon,
       ...toRecurrenceData(input.recurrence),
     },
   });
@@ -95,6 +98,7 @@ export async function duplicateFinanceTransaction(id: string) {
       dueDate: original.dueDate,
       paidAt: null,
       status: "pendente",
+      isGoon: original.isGoon,
       recurrenceFrequency: original.recurrenceFrequency,
       recurrenceInterval: original.recurrenceInterval,
       recurrenceNextDate: original.recurrenceNextDate,
@@ -129,6 +133,7 @@ async function applyMarkPaid(id: string) {
         dueDate: transaction.recurrenceNextDate,
         paidAt: null,
         status: "pendente",
+        isGoon: transaction.isGoon,
         recurrenceFrequency: transaction.recurrenceFrequency,
         recurrenceInterval: transaction.recurrenceInterval,
         recurrenceNextDate: followingDate,

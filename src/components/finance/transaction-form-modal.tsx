@@ -61,7 +61,7 @@ const RECURRENCE_ITEMS: Record<string, string> = {
   anual: "Anual",
 };
 
-type TransactionDefaults = Partial<Pick<Transaction, "kind" | "scope" | "clientId" | "category">>;
+export type TransactionDefaults = Partial<Pick<Transaction, "kind" | "scope" | "clientId" | "category" | "isGoon">>;
 
 export function TransactionFormModal({
   isOpen,
@@ -126,6 +126,7 @@ function TransactionForm({
   const [status, setStatus] = useState<TransactionStatus>(editing?.status ?? "pendente");
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<string>(editing?.recurrence?.frequency ?? "none");
   const [recurrenceInterval, setRecurrenceInterval] = useState(String(editing?.recurrence?.interval ?? 1));
+  const [isGoon, setIsGoon] = useState<boolean>(editing?.isGoon ?? defaults?.isGoon ?? false);
 
   const categoryItems: Record<string, string> = Object.fromEntries(categories.map((c) => [c.name, c.name]));
   const clientItems: Record<string, React.ReactNode> = {
@@ -208,6 +209,7 @@ function TransactionForm({
         paidAt: paidAt || null,
         status,
         recurrence,
+        isGoon,
       };
 
       try {
@@ -251,6 +253,20 @@ function TransactionForm({
             </button>
           ))}
         </div>
+
+        <button
+          type="button"
+          onClick={() => setIsGoon((prev) => !prev)}
+          className={cn(
+            "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm font-medium transition-colors duration-150",
+            isGoon ? "border-amber-500/50 bg-amber-500/15 text-amber-400" : "border-border/60 bg-muted/20 text-muted-foreground"
+          )}
+        >
+          <span>Lançamento do GOON</span>
+          <span className="text-xs font-normal opacity-80">
+            {isGoon ? "Sim — fica isolado do financeiro principal" : "Não — entra no financeiro principal"}
+          </span>
+        </button>
 
         <div className="space-y-1.5">
           <Label htmlFor="tx-description">Descrição</Label>

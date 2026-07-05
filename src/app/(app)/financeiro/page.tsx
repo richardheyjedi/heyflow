@@ -1,8 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FinanceOverview } from "@/components/finance/finance-overview";
-import { TransactionsTab } from "@/components/finance/transactions-tab";
+import { LancamentosSection } from "@/components/finance/lancamentos-section";
 import { ClientsTab } from "@/components/finance/clients-tab";
-import { GoonTab } from "@/components/finance/goon-tab";
 import { DreTab } from "@/components/finance/dre-tab";
 import { getFinanceBudgets, getFinanceCategories, getFinanceClients, getFinanceTransactions } from "@/lib/finance/data";
 
@@ -17,6 +16,8 @@ export default async function FinanceiroPage() {
     getFinanceCategories(),
     getFinanceBudgets(),
   ]);
+  // GOON é um ledger isolado — nunca deve entrar nos totais do financeiro principal.
+  const mainTransactions = transactions.filter((t) => !t.isGoon);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -31,24 +32,20 @@ export default async function FinanceiroPage() {
         <TabsList>
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="transactions">Lançamentos</TabsTrigger>
-          <TabsTrigger value="goon">GOON</TabsTrigger>
           <TabsTrigger value="clients">Clientes</TabsTrigger>
           <TabsTrigger value="dre">DRE</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-4">
-          <FinanceOverview transactions={transactions} clients={clients} categories={categories} budgets={budgets} />
+          <FinanceOverview transactions={mainTransactions} clients={clients} categories={categories} budgets={budgets} />
         </TabsContent>
         <TabsContent value="transactions" className="mt-4">
-          <TransactionsTab transactions={transactions} clients={clients} categories={categories} />
-        </TabsContent>
-        <TabsContent value="goon" className="mt-4">
-          <GoonTab transactions={transactions} clients={clients} categories={categories} />
+          <LancamentosSection transactions={transactions} clients={clients} categories={categories} />
         </TabsContent>
         <TabsContent value="clients" className="mt-4">
-          <ClientsTab transactions={transactions} clients={clients} />
+          <ClientsTab transactions={mainTransactions} clients={clients} />
         </TabsContent>
         <TabsContent value="dre" className="mt-4">
-          <DreTab transactions={transactions} />
+          <DreTab transactions={mainTransactions} />
         </TabsContent>
       </Tabs>
     </div>

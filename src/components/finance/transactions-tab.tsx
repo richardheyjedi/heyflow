@@ -6,7 +6,7 @@ import { Plus, Tags } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransactionFiltersBar } from "@/components/finance/transaction-filters-bar";
 import { TransactionTable } from "@/components/finance/transaction-table";
-import { TransactionFormModal } from "@/components/finance/transaction-form-modal";
+import { TransactionFormModal, type TransactionDefaults } from "@/components/finance/transaction-form-modal";
 import { ScheduleChargeDialog } from "@/components/finance/schedule-charge-dialog";
 import { CategoryManagerDialog } from "@/components/finance/category-manager-dialog";
 import { ExportCsvButton } from "@/components/finance/export-csv-button";
@@ -24,10 +24,12 @@ export function TransactionsTab({
   transactions,
   clients,
   categories,
+  defaults,
 }: {
   transactions: Transaction[];
   clients: Client[];
   categories: Category[];
+  defaults?: TransactionDefaults;
 }) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -182,6 +184,7 @@ export function TransactionsTab({
         editing={editingTransaction}
         clients={clients}
         categories={categories}
+        defaults={defaults}
         onClose={() => setIsFormOpen(false)}
       />
       <ScheduleChargeDialog transaction={chargeTarget} clients={clients} onClose={() => setChargeTarget(null)} />

@@ -18,11 +18,14 @@ export async function generateFinanceNotifications() {
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
 
-  const [transactions, categories, budgets] = await Promise.all([
+  const [allTransactions, categories, budgets] = await Promise.all([
     getFinanceTransactions(),
     getFinanceCategories(),
     getFinanceBudgets(),
   ]);
+  // GOON é isolado do financeiro principal — não deve gerar/alterar alertas de
+  // mês quitado, corte de pagamento ou orçamento por grupo.
+  const transactions = allTransactions.filter((t) => !t.isGoon);
 
   await notifyMonthSettled(transactions, monthStart, monthEnd, now);
   await notifyUpcomingCutoffs(transactions, monthStart, monthEnd, now);

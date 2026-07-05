@@ -90,7 +90,7 @@ Os componentes (`src/components/finance/`) recebem os dados via props a partir d
 
 **Aba Clientes**: cada cliente/fornecedor vira um card com nome, tipo (PF/PJ) e cor editáveis inline, mais estatísticas agregadas (recebido, a receber, atrasado, pago/a pagar quando aplicável, último lançamento). Excluir um cliente não apaga os lançamentos ligados a ele — eles só ficam sem cliente (`onDelete: SetNull` no schema).
 
-**Aba GOON**: recorte "só recebimentos" — mostra apenas lançamentos de receita (de qualquer cliente), com seus próprios KPIs (recebido/a receber/atrasado), gráfico de entradas por mês e tabela, sem misturar com despesas do financeiro geral. Reaproveita os mesmos componentes e Server Actions de Lançamentos, só filtrando por `kind === "receita"`.
+**Lançamentos com Recebimentos/Despesas/GOON**: dentro da aba Lançamentos, três sub-abas. "Recebimentos" e "Despesas" mostram só o financeiro principal, cada um com seus KPIs, gráfico e tabela (`TransactionKindTab`, filtrando por `kind`). "GOON" é um **ledger isolado**: tem receita e despesa próprias e nunca soma nos totais do financeiro principal (Visão Geral, DRE, Clientes, Recebimentos/Despesas) nem nos alertas automáticos — o isolamento é feito pela coluna `isGoon` em `FinanceTransaction` (`@default(false)`), filtrada em `financeiro/page.tsx` e em `generateFinanceNotifications`. O formulário de lançamento tem um toggle "Lançamento do GOON"; criar um lançamento a partir da sub-aba GOON já vem com esse toggle ligado por padrão.
 
 O app nasce sem nenhum lançamento, cliente, transação ou orçamento de exemplo — só a taxonomia inicial de categorias (incluindo "Contas de Casa"). Comece cadastrando seus lançamentos reais.
 

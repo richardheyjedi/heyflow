@@ -188,6 +188,10 @@ model FinanceTransaction {
   paidAt      DateTime?
   status      FinanceTransactionStatus   @default(pendente)
 
+  // Lançamento do ledger GOON — isolado do financeiro principal: não entra em
+  // Visão Geral, DRE, Clientes ou nas abas Recebimentos/Despesas/Tudo.
+  isGoon Boolean @default(false)
+
   // Recorrência — achatada em colunas simples (sem tipo composto no SQLite).
   recurrenceFrequency FinanceRecurrenceFrequency?
   recurrenceInterval  Int?

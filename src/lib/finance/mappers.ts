@@ -37,6 +37,7 @@ export function toDomainTransaction(row: TransactionRow): Transaction {
       : null,
     reminderId: row.reminder?.id ?? null,
     originTransactionId: row.originTransactionId,
+    isGoon: row.isGoon,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
