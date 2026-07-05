@@ -1,19 +1,18 @@
 import "dotenv/config";
 import { PrismaClient, TaskPriority, TaskStatus } from "../src/generated/prisma/client";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
-import { addDays, addMonths, subDays, setDate, setHours, setMinutes, startOfDay, startOfMonth } from "date-fns";
+import { addDays, subDays, setHours, setMinutes, startOfDay } from "date-fns";
 
-const adapter = new PrismaLibSql({ url: process.env.DATABASE_URL ?? "file:./dev.db" });
+const adapter = new PrismaLibSql({
+  url: process.env.DATABASE_URL ?? "file:./dev.db",
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
 const prisma = new PrismaClient({ adapter });
 
 function at(daysFromToday: number, hour?: number, minute = 0) {
   const base = startOfDay(daysFromToday >= 0 ? addDays(new Date(), daysFromToday) : subDays(new Date(), -daysFromToday));
   if (hour === undefined) return base;
   return setMinutes(setHours(base, hour), minute);
-}
-
-function dayOfMonth(day: number, monthOffset = 0) {
-  return setDate(startOfMonth(addMonths(new Date(), monthOffset)), day);
 }
 
 async function main() {
@@ -346,265 +345,24 @@ async function main() {
     });
   }
 
-  console.log("Criando dados do financeiro...");
-  const [acme, beta, joao, fornecedor] = await Promise.all([
-    prisma.financeClient.create({ data: { name: "Acme Corp", color: "#A855F7", kind: "PJ" } }),
-    prisma.financeClient.create({ data: { name: "Beta Studios", color: "#8B5CF6", kind: "PJ" } }),
-    prisma.financeClient.create({ data: { name: "João Investidor", color: "#60A5FA", kind: "PF" } }),
-    prisma.financeClient.create({ data: { name: "Fornecedor XPTO", color: "#F59E0B", kind: "PJ" } }),
-  ]);
-
-  const categoryNames = [
-    "Aluguel",
-    "Impostos",
-    "Fornecedores",
-    "Assinaturas",
-    "Alimentação",
-    "Serviços prestados",
-    "Salários",
-    "Transporte",
-    "Outros",
+  console.log("Criando categorias-base do financeiro...");
+  // Só a taxonomia inicial — nenhum lançamento ou cliente fictício.
+  const categorySeed: { name: string; group: "casa" | "pessoal" | "negocio" | "outro" }[] = [
+    { name: "Contas de Casa", group: "casa" },
+    { name: "Aluguel/Financiamento", group: "casa" },
+    { name: "Mercado", group: "casa" },
+    { name: "Transporte", group: "pessoal" },
+    { name: "Saúde", group: "pessoal" },
+    { name: "Lazer", group: "pessoal" },
+    { name: "Educação", group: "pessoal" },
+    { name: "Serviços Prestados", group: "negocio" },
+    { name: "Fornecedores", group: "negocio" },
+    { name: "Impostos", group: "negocio" },
+    { name: "Salários", group: "negocio" },
+    { name: "Assinaturas", group: "outro" },
+    { name: "Outros", group: "outro" },
   ];
-  await prisma.financeCategory.createMany({ data: categoryNames.map((name) => ({ name })) });
-
-  type SeedFinanceTransaction = {
-    kind: "receita" | "despesa";
-    scope: "PF" | "PJ";
-    description: string;
-    amountCents: number;
-    category: string;
-    clientId?: string | null;
-    dueDate: Date;
-    paidAt?: Date | null;
-    status: "pago" | "nao_pago" | "pendente";
-    recurrenceFrequency?: "semanal" | "quinzenal" | "mensal" | "anual" | null;
-    recurrenceInterval?: number | null;
-    recurrenceNextDate?: Date | null;
-  };
-
-  const financeTransactions: SeedFinanceTransaction[] = [
-    // Receitas
-    {
-      kind: "receita",
-      scope: "PJ",
-      description: "Consultoria mensal — Acme Corp",
-      amountCents: 850000,
-      category: "Serviços prestados",
-      clientId: acme.id,
-      dueDate: dayOfMonth(10),
-      status: "pendente",
-      recurrenceFrequency: "mensal",
-      recurrenceInterval: 1,
-      recurrenceNextDate: dayOfMonth(10, 1),
-    },
-    {
-      kind: "receita",
-      scope: "PJ",
-      description: "Projeto de design — Beta Studios",
-      amountCents: 420000,
-      category: "Serviços prestados",
-      clientId: beta.id,
-      dueDate: dayOfMonth(2),
-      paidAt: dayOfMonth(2),
-      status: "pago",
-    },
-    {
-      kind: "receita",
-      scope: "PF",
-      description: "Consultoria pontual — João Investidor",
-      amountCents: 150000,
-      category: "Serviços prestados",
-      clientId: joao.id,
-      dueDate: dayOfMonth(7),
-      status: "pendente",
-    },
-    {
-      kind: "receita",
-      scope: "PJ",
-      description: "Suporte técnico — Acme Corp",
-      amountCents: 90000,
-      category: "Serviços prestados",
-      clientId: acme.id,
-      dueDate: dayOfMonth(1),
-      status: "nao_pago",
-    },
-    {
-      kind: "receita",
-      scope: "PJ",
-      description: "Retainer mensal — Beta Studios",
-      amountCents: 320000,
-      category: "Serviços prestados",
-      clientId: beta.id,
-      dueDate: dayOfMonth(20),
-      status: "pendente",
-      recurrenceFrequency: "mensal",
-      recurrenceInterval: 1,
-      recurrenceNextDate: dayOfMonth(20, 1),
-    },
-
-    // Despesas PJ
-    {
-      kind: "despesa",
-      scope: "PJ",
-      description: "Aluguel do escritório",
-      amountCents: 280000,
-      category: "Aluguel",
-      dueDate: dayOfMonth(5),
-      paidAt: dayOfMonth(4),
-      status: "pago",
-      recurrenceFrequency: "mensal",
-      recurrenceInterval: 1,
-      recurrenceNextDate: dayOfMonth(5, 1),
-    },
-    {
-      kind: "despesa",
-      scope: "PJ",
-      description: "Internet e telefonia",
-      amountCents: 25000,
-      category: "Assinaturas",
-      dueDate: dayOfMonth(8),
-      status: "nao_pago",
-      recurrenceFrequency: "mensal",
-      recurrenceInterval: 1,
-      recurrenceNextDate: dayOfMonth(8, 1),
-    },
-    {
-      kind: "despesa",
-      scope: "PJ",
-      description: "Assinatura Figma",
-      amountCents: 18000,
-      category: "Assinaturas",
-      dueDate: dayOfMonth(10),
-      status: "nao_pago",
-      recurrenceFrequency: "mensal",
-      recurrenceInterval: 1,
-      recurrenceNextDate: dayOfMonth(10, 1),
-    },
-    {
-      kind: "despesa",
-      scope: "PJ",
-      description: "Matéria-prima — Fornecedor XPTO",
-      amountCents: 610000,
-      category: "Fornecedores",
-      clientId: fornecedor.id,
-      dueDate: dayOfMonth(15),
-      status: "pendente",
-    },
-    {
-      kind: "despesa",
-      scope: "PJ",
-      description: "Impostos (DAS)",
-      amountCents: 95000,
-      category: "Impostos",
-      dueDate: dayOfMonth(20),
-      status: "nao_pago",
-      recurrenceFrequency: "mensal",
-      recurrenceInterval: 1,
-      recurrenceNextDate: dayOfMonth(20, 1),
-    },
-    {
-      kind: "despesa",
-      scope: "PJ",
-      description: "Energia elétrica",
-      amountCents: 34000,
-      category: "Outros",
-      dueDate: dayOfMonth(10),
-      status: "nao_pago",
-      recurrenceFrequency: "mensal",
-      recurrenceInterval: 1,
-      recurrenceNextDate: dayOfMonth(10, 1),
-    },
-    {
-      kind: "despesa",
-      scope: "PJ",
-      description: "Contador",
-      amountCents: 60000,
-      category: "Serviços prestados",
-      dueDate: dayOfMonth(6),
-      paidAt: dayOfMonth(5),
-      status: "pago",
-      recurrenceFrequency: "mensal",
-      recurrenceInterval: 1,
-      recurrenceNextDate: dayOfMonth(6, 1),
-    },
-
-    // Despesas PF
-    {
-      kind: "despesa",
-      scope: "PF",
-      description: "Aluguel apartamento",
-      amountCents: 220000,
-      category: "Aluguel",
-      dueDate: dayOfMonth(5),
-      status: "nao_pago",
-      recurrenceFrequency: "mensal",
-      recurrenceInterval: 1,
-      recurrenceNextDate: dayOfMonth(5, 1),
-    },
-    {
-      kind: "despesa",
-      scope: "PF",
-      description: "Supermercado",
-      amountCents: 78000,
-      category: "Alimentação",
-      dueDate: dayOfMonth(3),
-      paidAt: dayOfMonth(3),
-      status: "pago",
-    },
-    {
-      kind: "despesa",
-      scope: "PF",
-      description: "Plano de saúde",
-      amountCents: 65000,
-      category: "Outros",
-      dueDate: dayOfMonth(25),
-      status: "nao_pago",
-      recurrenceFrequency: "mensal",
-      recurrenceInterval: 1,
-      recurrenceNextDate: dayOfMonth(25, 1),
-    },
-    {
-      kind: "despesa",
-      scope: "PF",
-      description: "Fatura cartão de crédito",
-      amountCents: 340000,
-      category: "Outros",
-      dueDate: dayOfMonth(2),
-      status: "nao_pago",
-    },
-    {
-      kind: "despesa",
-      scope: "PF",
-      description: "Streaming (Netflix + Spotify)",
-      amountCents: 6500,
-      category: "Assinaturas",
-      dueDate: dayOfMonth(12),
-      paidAt: dayOfMonth(11),
-      status: "pago",
-      recurrenceFrequency: "mensal",
-      recurrenceInterval: 1,
-      recurrenceNextDate: dayOfMonth(12, 1),
-    },
-  ];
-
-  for (const t of financeTransactions) {
-    await prisma.financeTransaction.create({
-      data: {
-        kind: t.kind,
-        scope: t.scope,
-        description: t.description,
-        amountCents: t.amountCents,
-        category: t.category,
-        clientId: t.clientId ?? null,
-        dueDate: t.dueDate,
-        paidAt: t.paidAt ?? null,
-        status: t.status,
-        recurrenceFrequency: t.recurrenceFrequency ?? null,
-        recurrenceInterval: t.recurrenceInterval ?? null,
-        recurrenceNextDate: t.recurrenceNextDate ?? null,
-      },
-    });
-  }
+  await prisma.financeCategory.createMany({ data: categorySeed });
 
   console.log("Seed concluído com sucesso.");
 }

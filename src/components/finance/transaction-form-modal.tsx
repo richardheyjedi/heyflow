@@ -29,7 +29,9 @@ import {
 } from "@/lib/finance/actions";
 import { centsToInputValue, computeNextRecurrenceDate, inputValueToCents } from "@/lib/finance/calculations";
 import { format, parseISO } from "date-fns";
+import { CategoryBadge } from "@/components/finance/category-badge";
 import type {
+  Category,
   Client,
   OwnerScope,
   RecurrenceFrequency,
@@ -69,7 +71,7 @@ export function TransactionFormModal({
   isOpen: boolean;
   editing: Transaction | null;
   clients: Client[];
-  categories: string[];
+  categories: Category[];
   onClose: () => void;
 }) {
   return (
@@ -95,18 +97,18 @@ function TransactionForm({
 }: {
   editing: Transaction | null;
   clients: Client[];
-  categories: string[];
+  categories: Category[];
   onClose: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [clients, setClients] = useState<Client[]>(initialClients);
-  const [categories, setCategories] = useState<string[]>(initialCategories);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
 
   const [kind, setKind] = useState<TransactionKind>(editing?.kind ?? "despesa");
   const [scope, setScope] = useState<OwnerScope>(editing?.scope ?? "PJ");
   const [description, setDescription] = useState(editing?.description ?? "");
   const [amount, setAmount] = useState(editing ? centsToInputValue(editing.amountCents) : "");
-  const [category, setCategory] = useState(editing?.category ?? initialCategories[0] ?? "Outros");
+  const [category, setCategory] = useState(editing?.category ?? initialCategories[0]?.name ?? "Outros");
   const [newCategory, setNewCategory] = useState("");
   const [clientId, setClientId] = useState<string>(editing?.clientId ?? "none");
   const [newClientName, setNewClientName] = useState("");
@@ -118,7 +120,7 @@ function TransactionForm({
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<string>(editing?.recurrence?.frequency ?? "none");
   const [recurrenceInterval, setRecurrenceInterval] = useState(String(editing?.recurrence?.interval ?? 1));
 
-  const categoryItems: Record<string, string> = Object.fromEntries(categories.map((c) => [c, c]));
+  const categoryItems: Record<string, string> = Object.fromEntries(categories.map((c) => [c.name, c.name]));
   const clientItems: Record<string, React.ReactNode> = {
     none: "Sem cliente/fornecedor",
     ...Object.fromEntries(clients.map((c) => [c.id, c.name])),
@@ -129,9 +131,9 @@ function TransactionForm({
     if (!name) return;
     setIsCreatingCategory(true);
     try {
-      await createFinanceCategory(name);
-      setCategories((prev) => (prev.includes(name) ? prev : [...prev, name]));
-      setCategory(name);
+      const created = await createFinanceCategory(name);
+      setCategories((prev) => (prev.some((c) => c.id === created.id) ? prev : [...prev, created]));
+      setCategory(created.name);
       setNewCategory("");
     } catch {
       toast.error("Não foi possível criar a categoria.");
@@ -288,8 +290,8 @@ function TransactionForm({
               </SelectTrigger>
               <SelectContent>
                 {categories.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
+                  <SelectItem key={c.id} value={c.name}>
+                    <CategoryBadge name={c.name} group={c.group} />
                   </SelectItem>
                 ))}
               </SelectContent>

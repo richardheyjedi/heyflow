@@ -35,6 +35,33 @@ export type Client = {
 };
 
 /**
+ * Agrupamento de categorias: "casa" cobre contas domésticas (água, luz,
+ * aluguel, mercado...), "pessoal" gastos individuais fora de casa, "negocio"
+ * o lado PJ/trabalho, e "outro" o que não se encaixa nos demais.
+ */
+export type CategoryGroup = "casa" | "pessoal" | "negocio" | "outro";
+
+export const CATEGORY_GROUP_LABEL: Record<CategoryGroup, string> = {
+  casa: "Casa",
+  pessoal: "Pessoal",
+  negocio: "Negócio",
+  outro: "Outro",
+};
+
+export type Category = {
+  id: string;
+  name: string;
+  group: CategoryGroup;
+};
+
+/** Limite mensal de gasto para um grupo de categorias (ex.: Casa até R$1.200). */
+export type Budget = {
+  id: string;
+  group: CategoryGroup;
+  limitCents: number;
+};
+
+/**
  * Lembrete de cobrança vinculado a um lançamento. Quando `taskId` está
  * preenchido, existe uma Task real criada no TaskFlow (via Server Action
  * `createTask`) para esse lembrete.
@@ -77,6 +104,7 @@ export type TransactionFilters = {
   status: TransactionStatus | "all";
   clientId: string | "all";
   scope: OwnerScope | "all";
+  categoryGroup: CategoryGroup | "all";
 };
 
 export const DEFAULT_FILTERS: TransactionFilters = {
@@ -84,18 +112,7 @@ export const DEFAULT_FILTERS: TransactionFilters = {
   status: "all",
   clientId: "all",
   scope: "all",
+  categoryGroup: "all",
 };
-
-export const CATEGORY_LABELS_SEED = [
-  "Aluguel",
-  "Impostos",
-  "Fornecedores",
-  "Assinaturas",
-  "Alimentação",
-  "Serviços prestados",
-  "Salários",
-  "Transporte",
-  "Outros",
-];
 
 export const PAYMENT_CUTOFF_DAYS = [5, 10, 15, 20, 25] as const;

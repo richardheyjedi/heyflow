@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
-import { toDomainClient, toDomainTransaction } from "@/lib/finance/mappers";
+import { toDomainBudget, toDomainCategory, toDomainClient, toDomainTransaction } from "@/lib/finance/mappers";
 
 export const financeTransactionInclude = {
   reminder: true,
@@ -21,5 +21,10 @@ export async function getFinanceClients() {
 
 export async function getFinanceCategories() {
   const rows = await prisma.financeCategory.findMany({ orderBy: { name: "asc" } });
-  return rows.map((r) => r.name);
+  return rows.map(toDomainCategory);
+}
+
+export async function getFinanceBudgets() {
+  const rows = await prisma.financeBudget.findMany();
+  return rows.map(toDomainBudget);
 }

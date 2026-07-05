@@ -5,11 +5,12 @@ import { ProjectModal } from "@/components/taskflow/project-modal";
 import { getProjects } from "@/lib/data/projects";
 import { getTags } from "@/lib/data/tags";
 import { generateDueNotifications } from "@/lib/data/notifications";
+import { generateFinanceNotifications } from "@/lib/finance/notifications";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  await generateDueNotifications();
+  await Promise.all([generateDueNotifications(), generateFinanceNotifications()]);
   const [projects, tags] = await Promise.all([getProjects(), getTags()]);
 
   return (

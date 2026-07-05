@@ -45,3 +45,6 @@ next-env.d.ts
 # local SQLite database (recreate with `npx prisma migrate dev` + `npx prisma db seed`)
 *.db
 *.db-journal
+
+.vercel
+.env*

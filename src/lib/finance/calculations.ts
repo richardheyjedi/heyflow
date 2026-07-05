@@ -17,6 +17,9 @@ import {
 import { ptBR } from "date-fns/locale";
 import {
   PAYMENT_CUTOFF_DAYS,
+  type Budget,
+  type Category,
+  type CategoryGroup,
   type Client,
   type RecurrenceRule,
   type Transaction,
@@ -53,9 +56,11 @@ export function getClientName(clients: Client[], clientId: string | null): strin
 export function filterTransactions(
   transactions: Transaction[],
   filters: TransactionFilters,
-  referenceDate: Date = new Date()
+  referenceDate: Date = new Date(),
+  categories: Category[] = []
 ): Transaction[] {
   const { start, end } = getPeriodRange(filters, referenceDate);
+  const groupByCategoryName = new Map(categories.map((c) => [c.name, c.group]));
 
   return transactions.filter((t) => {
     const due = parseISO(t.dueDate);
@@ -63,6 +68,7 @@ export function filterTransactions(
     if (filters.status !== "all" && t.status !== filters.status) return false;
     if (filters.clientId !== "all" && t.clientId !== filters.clientId) return false;
     if (filters.scope !== "all" && t.scope !== filters.scope) return false;
+    if (filters.categoryGroup !== "all" && groupByCategoryName.get(t.category) !== filters.categoryGroup) return false;
     return true;
   });
 }
@@ -367,6 +373,83 @@ export function getDRE(transactions: Transaction[], referenceDate: Date = new Da
       .map(([category, totalCents]) => ({ category, totalCents }))
       .sort((a, b) => b.totalCents - a.totalCents),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Despesas por grupo de categoria (Casa / Pessoal / Negócio / Outro)
+// ---------------------------------------------------------------------------
+
+const GROUP_ORDER: CategoryGroup[] = ["casa", "pessoal", "negocio", "outro"];
+
+function sumExpensesByGroupInMonth(
+  transactions: Transaction[],
+  categories: Category[],
+  referenceDate: Date
+): Map<CategoryGroup, number> {
+  const start = startOfMonth(referenceDate);
+  const end = endOfMonth(referenceDate);
+  const groupByCategoryName = new Map(categories.map((c) => [c.name, c.group]));
+
+  const despesasDoMes = transactions.filter(
+    (t) => t.kind === "despesa" && isWithinInterval(parseISO(t.dueDate), { start, end })
+  );
+
+  const totals = new Map<CategoryGroup, number>();
+  for (const t of despesasDoMes) {
+    const group = groupByCategoryName.get(t.category) ?? "outro";
+    totals.set(group, (totals.get(group) ?? 0) + t.amountCents);
+  }
+  return totals;
+}
+
+export type GroupBreakdown = { group: CategoryGroup; totalCents: number };
+
+export function getExpenseBreakdownByGroup(
+  transactions: Transaction[],
+  categories: Category[],
+  referenceDate: Date = new Date()
+): GroupBreakdown[] {
+  const totals = sumExpensesByGroupInMonth(transactions, categories, referenceDate);
+
+  return GROUP_ORDER
+    .map((group) => ({ group, totalCents: totals.get(group) ?? 0 }))
+    .filter((entry) => entry.totalCents > 0);
+}
+
+// ---------------------------------------------------------------------------
+// Orçamento por grupo — compara o gasto do mês com o limite definido
+// ---------------------------------------------------------------------------
+
+export type BudgetStatus = {
+  group: CategoryGroup;
+  spentCents: number;
+  limitCents: number | null;
+  /** 0-100+, null quando não há limite definido para o grupo. */
+  percentage: number | null;
+  isOverBudget: boolean;
+};
+
+export function getBudgetStatus(
+  transactions: Transaction[],
+  categories: Category[],
+  budgets: Budget[],
+  referenceDate: Date = new Date()
+): BudgetStatus[] {
+  const spentByGroup = sumExpensesByGroupInMonth(transactions, categories, referenceDate);
+  const limitByGroup = new Map(budgets.map((b) => [b.group, b.limitCents]));
+
+  return GROUP_ORDER.map((group) => {
+    const spentCents = spentByGroup.get(group) ?? 0;
+    const limitCents = limitByGroup.get(group) ?? null;
+    const percentage = limitCents ? Math.round((spentCents / limitCents) * 100) : null;
+    return {
+      group,
+      spentCents,
+      limitCents,
+      percentage,
+      isOverBudget: limitCents !== null && spentCents > limitCents,
+    };
+  }).filter((entry) => entry.limitCents !== null || entry.spentCents > 0);
 }
 
 // ---------------------------------------------------------------------------

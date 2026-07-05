@@ -1,17 +1,21 @@
 "use client";
 
 import { useMemo } from "react";
-import { Wallet, ArrowDownCircle, ArrowUpCircle, TrendingUp } from "lucide-react";
+import { Wallet, ArrowDownCircle, ArrowUpCircle, TrendingUp, PiggyBank } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
 import { MetricCard } from "@/components/taskflow/dashboard/metric-card";
 import { CashFlowChart } from "@/components/finance/cash-flow-chart";
 import { PaymentCutoffsPanel } from "@/components/finance/payment-cutoffs-panel";
 import { MonthSettledBanner } from "@/components/finance/month-settled-banner";
 import { DueAlertsPanel } from "@/components/finance/due-alerts-panel";
 import { BalanceProjectionPanel } from "@/components/finance/balance-projection-panel";
+import { GroupBreakdownPanel } from "@/components/finance/group-breakdown-panel";
+import { BudgetManagerDialog } from "@/components/finance/budget-manager-dialog";
 import {
   formatCurrencyBRL,
+  getBudgetStatus,
   getCashFlowSeries,
   getMonthSettledStatus,
   getPaymentCutoffs,
@@ -19,9 +23,19 @@ import {
   getUpcomingDue,
   projectBalance,
 } from "@/lib/finance/calculations";
-import type { Client, Transaction } from "@/lib/finance/types";
+import type { Budget, Category, Client, Transaction } from "@/lib/finance/types";
 
-export function FinanceOverview({ transactions, clients }: { transactions: Transaction[]; clients: Client[] }) {
+export function FinanceOverview({
+  transactions,
+  clients,
+  categories,
+  budgets,
+}: {
+  transactions: Transaction[];
+  clients: Client[];
+  categories: Category[];
+  budgets: Budget[];
+}) {
   const now = useMemo(() => new Date(), []);
   const totals = useMemo(() => getTotals(transactions), [transactions]);
   const cutoffs = useMemo(() => getPaymentCutoffs(transactions, now), [transactions, now]);
@@ -29,6 +43,10 @@ export function FinanceOverview({ transactions, clients }: { transactions: Trans
   const cashFlowSeries = useMemo(() => getCashFlowSeries(transactions, 5, now), [transactions, now]);
   const dueAlerts = useMemo(() => getUpcomingDue(transactions, 7, now), [transactions, now]);
   const projection = useMemo(() => projectBalance(transactions, 3, now), [transactions, now]);
+  const budgetStatus = useMemo(
+    () => getBudgetStatus(transactions, categories, budgets, now),
+    [transactions, categories, budgets, now]
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -65,12 +83,27 @@ export function FinanceOverview({ transactions, clients }: { transactions: Trans
         <CashFlowChart data={cashFlowSeries} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="space-y-3 lg:col-span-1">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground">Orçamento por grupo</h2>
+            <BudgetManagerDialog
+              budgets={budgets}
+              trigger={
+                <Button variant="ghost" size="icon-sm" title="Configurar orçamento">
+                  <PiggyBank className="size-3.5" />
+                </Button>
+              }
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">Casa, pessoal, negócio e outros — no mês corrente.</p>
+          <GroupBreakdownPanel status={budgetStatus} />
+        </div>
+        <div className="space-y-3 lg:col-span-1">
           <h2 className="text-sm font-semibold text-foreground">Vence nos próximos 7 dias</h2>
           <DueAlertsPanel alerts={dueAlerts} clients={clients} />
         </div>
-        <div className="space-y-3">
+        <div className="space-y-3 lg:col-span-1">
           <h2 className="text-sm font-semibold text-foreground">Projeção — próximos 3 meses</h2>
           <p className="text-xs text-muted-foreground">
             Considera lançamentos já cadastrados e as próximas ocorrências de recorrências.

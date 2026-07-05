@@ -4,14 +4,16 @@ import {
   filterTransactions,
   formatCurrencyBRL,
   generateNextOccurrence,
+  getBudgetStatus,
   getDRE,
+  getExpenseBreakdownByGroup,
   getMonthSettledStatus,
   getPaymentCutoffs,
   getTotals,
   getUpcomingDue,
   projectBalance,
 } from "@/lib/finance/calculations";
-import { DEFAULT_FILTERS, type Transaction } from "@/lib/finance/types";
+import { DEFAULT_FILTERS, type Budget, type Category, type Transaction } from "@/lib/finance/types";
 
 const REFERENCE = new Date("2026-07-15T12:00:00.000Z");
 
@@ -175,4 +177,62 @@ test("filterTransactions aplica período, status, cliente e escopo", () => {
 
   const onlyClient = filterTransactions(transactions, { ...DEFAULT_FILTERS, clientId: "c1" }, REFERENCE);
   assert.deepEqual(onlyClient.map((t) => t.id), ["a"]);
+});
+
+test("filterTransactions filtra por grupo de categoria", () => {
+  const categories: Category[] = [
+    { id: "cat1", name: "Contas de Casa", group: "casa" },
+    { id: "cat2", name: "Assinaturas", group: "outro" },
+  ];
+  const transactions = [
+    makeTransaction({ id: "a", dueDate: "2026-07-05", category: "Contas de Casa" }),
+    makeTransaction({ id: "b", dueDate: "2026-07-06", category: "Assinaturas" }),
+  ];
+
+  const onlyCasa = filterTransactions(transactions, { ...DEFAULT_FILTERS, categoryGroup: "casa" }, REFERENCE, categories);
+  assert.deepEqual(onlyCasa.map((t) => t.id), ["a"]);
+});
+
+test("getExpenseBreakdownByGroup soma despesas do mês por grupo de categoria", () => {
+  const categories: Category[] = [
+    { id: "cat1", name: "Contas de Casa", group: "casa" },
+    { id: "cat2", name: "Mercado", group: "casa" },
+    { id: "cat3", name: "Serviços Prestados", group: "negocio" },
+  ];
+  const transactions = [
+    makeTransaction({ id: "a", dueDate: "2026-07-05", category: "Contas de Casa", amountCents: 20000 }),
+    makeTransaction({ id: "b", dueDate: "2026-07-06", category: "Mercado", amountCents: 15000 }),
+    makeTransaction({ id: "c", dueDate: "2026-07-07", category: "Serviços Prestados", amountCents: 50000 }),
+    makeTransaction({ id: "d", dueDate: "2026-08-01", category: "Mercado", amountCents: 99999 }), // fora do mês
+  ];
+
+  const breakdown = getExpenseBreakdownByGroup(transactions, categories, REFERENCE);
+  assert.deepEqual(breakdown, [
+    { group: "casa", totalCents: 35000 },
+    { group: "negocio", totalCents: 50000 },
+  ]);
+});
+
+test("getBudgetStatus compara gasto do mês com o limite por grupo", () => {
+  const categories: Category[] = [{ id: "cat1", name: "Contas de Casa", group: "casa" }];
+  const budgets: Budget[] = [{ id: "b1", group: "casa", limitCents: 30000 }];
+
+  const withinBudget = getBudgetStatus(
+    [makeTransaction({ dueDate: "2026-07-05", category: "Contas de Casa", amountCents: 20000 })],
+    categories,
+    budgets,
+    REFERENCE
+  );
+  assert.deepEqual(withinBudget, [
+    { group: "casa", spentCents: 20000, limitCents: 30000, percentage: 67, isOverBudget: false },
+  ]);
+
+  const overBudget = getBudgetStatus(
+    [makeTransaction({ dueDate: "2026-07-05", category: "Contas de Casa", amountCents: 45000 })],
+    categories,
+    budgets,
+    REFERENCE
+  );
+  assert.equal(overBudget[0].isOverBudget, true);
+  assert.equal(overBudget[0].percentage, 150);
 });

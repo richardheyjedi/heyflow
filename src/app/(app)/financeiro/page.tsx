@@ -2,17 +2,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FinanceOverview } from "@/components/finance/finance-overview";
 import { TransactionsTab } from "@/components/finance/transactions-tab";
 import { DreTab } from "@/components/finance/dre-tab";
-import { getFinanceCategories, getFinanceClients, getFinanceTransactions } from "@/lib/finance/data";
+import { getFinanceBudgets, getFinanceCategories, getFinanceClients, getFinanceTransactions } from "@/lib/finance/data";
 
 // Página do módulo Financeiro. Os dados vêm do Prisma (ver src/lib/finance/data.ts)
 // e as mutações são Server Actions (src/lib/finance/actions.ts) — mesmo padrão
 // usado no resto do TaskFlow. `dynamic = "force-dynamic"` já está definido no
 // layout de (app) e cobre esta rota também.
 export default async function FinanceiroPage() {
-  const [transactions, clients, categories] = await Promise.all([
+  const [transactions, clients, categories, budgets] = await Promise.all([
     getFinanceTransactions(),
     getFinanceClients(),
     getFinanceCategories(),
+    getFinanceBudgets(),
   ]);
 
   return (
@@ -31,7 +32,7 @@ export default async function FinanceiroPage() {
           <TabsTrigger value="dre">DRE</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-4">
-          <FinanceOverview transactions={transactions} clients={clients} />
+          <FinanceOverview transactions={transactions} clients={clients} categories={categories} budgets={budgets} />
         </TabsContent>
         <TabsContent value="transactions" className="mt-4">
           <TransactionsTab transactions={transactions} clients={clients} categories={categories} />

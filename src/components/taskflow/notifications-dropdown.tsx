@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Bell, CheckCheck, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Bell, CheckCheck, Clock, AlertTriangle, CheckCircle2, PiggyBank, CalendarClock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -17,12 +17,18 @@ const TYPE_ICON = {
   due_soon: Clock,
   overdue: AlertTriangle,
   completed: CheckCircle2,
+  budget_exceeded: PiggyBank,
+  month_settled: CheckCircle2,
+  cutoff_reminder: CalendarClock,
 } as const;
 
 const TYPE_COLOR = {
   due_soon: "text-priority-medium bg-priority-medium/15",
   overdue: "text-priority-urgent bg-priority-urgent/15",
   completed: "text-primary bg-primary/15",
+  budget_exceeded: "text-priority-urgent bg-priority-urgent/15",
+  month_settled: "text-primary bg-primary/15",
+  cutoff_reminder: "text-priority-medium bg-priority-medium/15",
 } as const;
 
 export function NotificationsDropdown({ notifications }: { notifications: NotificationWithTask[] }) {

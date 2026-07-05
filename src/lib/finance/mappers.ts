@@ -4,11 +4,13 @@
 
 import { format } from "date-fns";
 import type {
+  FinanceBudget as PrismaFinanceBudget,
+  FinanceCategory as PrismaFinanceCategory,
   FinanceClient as PrismaFinanceClient,
   FinanceReminder as PrismaFinanceReminder,
   FinanceTransaction as PrismaFinanceTransaction,
 } from "@/generated/prisma/client";
-import type { Client, Reminder, Transaction } from "@/lib/finance/types";
+import type { Budget, Category, Client, Reminder, Transaction } from "@/lib/finance/types";
 
 type TransactionRow = PrismaFinanceTransaction & { reminder?: PrismaFinanceReminder | null };
 
@@ -42,6 +44,14 @@ export function toDomainTransaction(row: TransactionRow): Transaction {
 
 export function toDomainClient(row: PrismaFinanceClient): Client {
   return { id: row.id, name: row.name, color: row.color, kind: row.kind };
+}
+
+export function toDomainCategory(row: PrismaFinanceCategory): Category {
+  return { id: row.id, name: row.name, group: row.group };
+}
+
+export function toDomainBudget(row: PrismaFinanceBudget): Budget {
+  return { id: row.id, group: row.group, limitCents: row.limitCents };
 }
 
 export function toDomainReminder(row: PrismaFinanceReminder): Reminder {

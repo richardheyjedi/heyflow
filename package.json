@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "db:migrate:turso": "node scripts/turso-migrate.mjs",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --import tsx --test src/lib/finance/calculations.test.ts"
+    "test": "node --import tsx --test src/lib/finance/calculations.test.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

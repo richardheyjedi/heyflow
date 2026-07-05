@@ -8,7 +8,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import type { Client, PeriodFilter, TransactionFilters, TransactionStatus } from "@/lib/finance/types";
+import {
+  CATEGORY_GROUP_LABEL,
+  type CategoryGroup,
+  type Client,
+  type PeriodFilter,
+  type TransactionFilters,
+  type TransactionStatus,
+} from "@/lib/finance/types";
 
 const PERIOD_ITEMS: Record<PeriodFilter, string> = {
   current_month: "Mês atual",
@@ -21,6 +28,11 @@ const STATUS_ITEMS: Record<string, string> = {
   pago: "Pago",
   nao_pago: "Não pago",
   pendente: "Pendente",
+};
+
+const GROUP_ITEMS: Record<string, string> = {
+  all: "Todos os grupos",
+  ...CATEGORY_GROUP_LABEL,
 };
 
 export function TransactionFiltersBar({
@@ -103,6 +115,23 @@ export function TransactionFiltersBar({
         </SelectTrigger>
         <SelectContent>
           {Object.entries(scopeItems).map(([value, label]) => (
+            <SelectItem key={value} value={value}>
+              {label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        items={GROUP_ITEMS}
+        value={filters.categoryGroup}
+        onValueChange={(v) => v && onChange({ categoryGroup: v as CategoryGroup | "all" })}
+      >
+        <SelectTrigger size="sm" className="w-36">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {Object.entries(GROUP_ITEMS).map(([value, label]) => (
             <SelectItem key={value} value={value}>
               {label}
             </SelectItem>

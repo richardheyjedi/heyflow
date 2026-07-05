@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { createTask } from "@/lib/actions/tasks";
 import { computeNextRecurrenceDate } from "@/lib/finance/calculations";
-import { toDomainClient } from "@/lib/finance/mappers";
+import { toDomainCategory, toDomainClient } from "@/lib/finance/mappers";
 import type {
+  CategoryGroup,
   OwnerScope,
   RecurrenceFrequency,
   TransactionKind,
@@ -102,7 +103,7 @@ export async function duplicateFinanceTransaction(id: string) {
   revalidateFinance();
 }
 
-export async function markFinanceTransactionPaid(id: string) {
+async function applyMarkPaid(id: string) {
   const transaction = await prisma.financeTransaction.findUnique({ where: { id } });
   if (!transaction) return;
 
@@ -135,7 +136,10 @@ export async function markFinanceTransactionPaid(id: string) {
       },
     });
   }
+}
 
+export async function markFinanceTransactionPaid(id: string) {
+  await applyMarkPaid(id);
   revalidateFinance();
 }
 
@@ -147,16 +151,82 @@ export async function markFinanceTransactionUnpaid(id: string) {
   revalidateFinance();
 }
 
-export async function createFinanceCategory(name: string) {
+// ---------------------------------------------------------------------------
+// Ações em massa (planilha) — mesmas regras das ações individuais, sem
+// disparar uma revalidação por item.
+// ---------------------------------------------------------------------------
+
+export async function markManyFinanceTransactionsPaid(ids: string[]) {
+  for (const id of ids) {
+    await applyMarkPaid(id);
+  }
+  revalidateFinance();
+}
+
+export async function markManyFinanceTransactionsUnpaid(ids: string[]) {
+  await prisma.financeTransaction.updateMany({
+    where: { id: { in: ids } },
+    data: { status: "pendente", paidAt: null },
+  });
+  revalidateFinance();
+}
+
+export async function deleteManyFinanceTransactions(ids: string[]) {
+  await prisma.financeTransaction.deleteMany({ where: { id: { in: ids } } });
+  revalidateFinance();
+}
+
+/** Usada pela edição inline (estilo planilha): muda só o status de um lançamento. */
+export async function updateFinanceTransactionStatus(id: string, status: TransactionStatus) {
+  if (status === "pago") return markFinanceTransactionPaid(id);
+
+  await prisma.financeTransaction.update({
+    where: { id },
+    data: { status, paidAt: null },
+  });
+  revalidateFinance();
+}
+
+/** Usada pela edição inline (estilo planilha): muda só a categoria de um lançamento. */
+export async function updateFinanceTransactionCategory(id: string, category: string) {
+  await prisma.financeTransaction.update({ where: { id }, data: { category } });
+  revalidateFinance();
+}
+
+export async function createFinanceCategory(name: string, group: CategoryGroup = "outro") {
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Nome da categoria não pode ser vazio.");
 
   const existing = await prisma.financeCategory.findUnique({ where: { name: trimmed } });
-  if (existing) return existing;
+  if (existing) return toDomainCategory(existing);
 
-  const category = await prisma.financeCategory.create({ data: { name: trimmed } });
+  const category = await prisma.financeCategory.create({ data: { name: trimmed, group } });
   revalidateFinance();
-  return category;
+  return toDomainCategory(category);
+}
+
+export async function updateFinanceCategory(id: string, name: string, group: CategoryGroup) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Nome da categoria não pode ser vazio.");
+
+  const current = await prisma.financeCategory.findUnique({ where: { id } });
+  if (!current) return;
+
+  await prisma.$transaction([
+    prisma.financeCategory.update({ where: { id }, data: { name: trimmed, group } }),
+    // Mantém os lançamentos existentes apontando para o novo nome da categoria.
+    prisma.financeTransaction.updateMany({
+      where: { category: current.name },
+      data: { category: trimmed },
+    }),
+  ]);
+
+  revalidateFinance();
+}
+
+export async function deleteFinanceCategory(id: string) {
+  await prisma.financeCategory.delete({ where: { id } });
+  revalidateFinance();
 }
 
 const CLIENT_COLOR_OPTIONS = ["#8B5CF6", "#A855F7", "#C084FC", "#60A5FA", "#F59E0B", "#FB7185"];
@@ -189,5 +259,25 @@ export async function scheduleFinanceReminder(transactionId: string, date: strin
     data: { transactionId, taskId: task.id, date: new Date(date), message },
   });
 
+  revalidateFinance();
+}
+
+// ---------------------------------------------------------------------------
+// Orçamento por grupo
+// ---------------------------------------------------------------------------
+
+export async function setFinanceBudget(group: CategoryGroup, limitCents: number) {
+  if (limitCents <= 0) throw new Error("O limite do orçamento deve ser maior que zero.");
+
+  await prisma.financeBudget.upsert({
+    where: { group },
+    create: { group, limitCents },
+    update: { limitCents },
+  });
+  revalidateFinance();
+}
+
+export async function removeFinanceBudget(group: CategoryGroup) {
+  await prisma.financeBudget.deleteMany({ where: { group } });
   revalidateFinance();
 }

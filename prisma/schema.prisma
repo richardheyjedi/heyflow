@@ -34,6 +34,9 @@ enum NotificationType {
   due_soon
   overdue
   completed
+  budget_exceeded
+  month_settled
+  cutoff_reminder
 }
 
 enum FinanceTransactionKind {
@@ -57,6 +60,13 @@ enum FinanceRecurrenceFrequency {
   quinzenal
   mensal
   anual
+}
+
+enum FinanceCategoryGroup {
+  casa
+  pessoal
+  negocio
+  outro
 }
 
 model Project {
@@ -159,9 +169,10 @@ model FinanceClient {
 }
 
 model FinanceCategory {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
+  id        String               @id @default(cuid())
+  name      String               @unique
+  group     FinanceCategoryGroup @default(outro)
+  createdAt DateTime             @default(now())
 
   @@map("finance_categories")
 }
@@ -193,6 +204,16 @@ model FinanceTransaction {
   updatedAt DateTime @updatedAt
 
   @@map("finance_transactions")
+}
+
+model FinanceBudget {
+  id         String               @id @default(cuid())
+  group      FinanceCategoryGroup @unique
+  limitCents Int
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@map("finance_budgets")
 }
 
 model FinanceReminder {
