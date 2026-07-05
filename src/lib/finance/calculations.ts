@@ -478,7 +478,8 @@ export type ClientStats = {
   payableCents: number;
   overdueCents: number;
   transactionCount: number;
-  lastDueDate: string | null;
+  /** Data de criação do lançamento mais recente (não o vencimento mais distante). */
+  lastCreatedAt: string | null;
 };
 
 export function getClientStats(transactions: Transaction[], clients: Client[], referenceDate: Date = new Date()): ClientStats[] {
@@ -492,7 +493,8 @@ export function getClientStats(transactions: Transaction[], clients: Client[], r
       payableCents: sumBy(own, (t) => t.kind === "despesa" && t.status !== "pago", "amountCents"),
       overdueCents: own.filter((t) => isTransactionOverdue(t, referenceDate)).reduce((s, t) => s + t.amountCents, 0),
       transactionCount: own.length,
-      lastDueDate: own.length > 0 ? own.reduce((latest, t) => (t.dueDate > latest ? t.dueDate : latest), own[0].dueDate) : null,
+      lastCreatedAt:
+        own.length > 0 ? own.reduce((latest, t) => (t.createdAt > latest ? t.createdAt : latest), own[0].createdAt) : null,
     };
   });
 }

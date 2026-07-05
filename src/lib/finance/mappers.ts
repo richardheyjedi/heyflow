@@ -2,7 +2,6 @@
 // e por calculations.ts (src/lib/finance/types.ts). Manter essa camada fina é o
 // que permite trocar a fonte de dados sem tocar em componentes/cálculos.
 
-import { format } from "date-fns";
 import type {
   FinanceBudget as PrismaFinanceBudget,
   FinanceCategory as PrismaFinanceCategory,
@@ -14,7 +13,21 @@ import type { Budget, Category, Client, Reminder, Transaction } from "@/lib/fina
 
 type TransactionRow = PrismaFinanceTransaction & { reminder?: PrismaFinanceReminder | null };
 
-const ISO_DATE = "yyyy-MM-dd";
+/**
+ * As colunas de data (dueDate, paidAt...) são datas "puras" (sem horário) —
+ * gravadas como meia-noite UTC (`new Date("yyyy-MM-dd")` em actions.ts). Usar
+ * `date-fns#format` aqui leria de volta no fuso LOCAL do processo e voltaria
+ * um dia errado sempre que o servidor não rodar em UTC (ex.: dev local no
+ * Brasil, UTC-3: meia-noite UTC de 1º vira 21h do dia 30 no horário local).
+ * Extrair os componentes em UTC mantém a data em round-trip fiel, independente
+ * do fuso onde o processo Node está rodando.
+ */
+function formatDateOnly(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 export function toDomainTransaction(row: TransactionRow): Transaction {
   return {
@@ -25,14 +38,14 @@ export function toDomainTransaction(row: TransactionRow): Transaction {
     amountCents: row.amountCents,
     category: row.category,
     clientId: row.clientId,
-    dueDate: format(row.dueDate, ISO_DATE),
-    paidAt: row.paidAt ? format(row.paidAt, ISO_DATE) : null,
+    dueDate: formatDateOnly(row.dueDate),
+    paidAt: row.paidAt ? formatDateOnly(row.paidAt) : null,
     status: row.status,
     recurrence: row.recurrenceFrequency
       ? {
           frequency: row.recurrenceFrequency,
           interval: row.recurrenceInterval ?? 1,
-          nextDate: row.recurrenceNextDate ? format(row.recurrenceNextDate, ISO_DATE) : format(row.dueDate, ISO_DATE),
+          nextDate: row.recurrenceNextDate ? formatDateOnly(row.recurrenceNextDate) : formatDateOnly(row.dueDate),
         }
       : null,
     reminderId: row.reminder?.id ?? null,
@@ -60,7 +73,7 @@ export function toDomainReminder(row: PrismaFinanceReminder): Reminder {
     id: row.id,
     transactionId: row.transactionId,
     taskId: row.taskId,
-    date: format(row.date, ISO_DATE),
+    date: formatDateOnly(row.date),
     message: row.message,
     createdAt: row.createdAt.toISOString(),
   };

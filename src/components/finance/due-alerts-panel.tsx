@@ -4,9 +4,17 @@ import { AlertTriangle, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/taskflow/empty-state";
 import { formatCurrencyBRL, getClientName, type DueAlert } from "@/lib/finance/calculations";
-import type { Client } from "@/lib/finance/types";
+import type { Client, Transaction } from "@/lib/finance/types";
 
-export function DueAlertsPanel({ alerts, clients }: { alerts: DueAlert[]; clients: Client[] }) {
+export function DueAlertsPanel({
+  alerts,
+  clients,
+  onEdit,
+}: {
+  alerts: DueAlert[];
+  clients: Client[];
+  onEdit?: (transaction: Transaction) => void;
+}) {
   if (alerts.length === 0) {
     return <EmptyState title="Nada vencendo" description="Nenhum lançamento vence nos próximos 7 dias." />;
   }
@@ -16,11 +24,15 @@ export function DueAlertsPanel({ alerts, clients }: { alerts: DueAlert[]; client
       {alerts.map((alert) => {
         const clientName = getClientName(clients, alert.clientId);
         return (
-          <div
+          <button
             key={alert.id}
+            type="button"
+            onClick={() => onEdit?.(alert)}
+            disabled={!onEdit}
             className={cn(
-              "flex items-center gap-3 rounded-xl border p-3",
-              alert.isOverdue ? "border-priority-urgent/25 bg-priority-urgent/10" : "border-border/60 bg-card/40"
+              "flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors",
+              alert.isOverdue ? "border-priority-urgent/25 bg-priority-urgent/10" : "border-border/60 bg-card/40",
+              onEdit && "cursor-pointer hover:border-primary/40"
             )}
           >
             <span
@@ -47,7 +59,7 @@ export function DueAlertsPanel({ alerts, clients }: { alerts: DueAlert[]; client
                 </p>
               )}
             </div>
-          </div>
+          </button>
         );
       })}
     </div>

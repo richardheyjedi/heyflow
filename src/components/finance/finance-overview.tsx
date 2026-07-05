@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Wallet, ArrowDownCircle, ArrowUpCircle, TrendingUp, PiggyBank } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -13,6 +13,7 @@ import { DueAlertsPanel } from "@/components/finance/due-alerts-panel";
 import { BalanceProjectionPanel } from "@/components/finance/balance-projection-panel";
 import { GroupBreakdownPanel } from "@/components/finance/group-breakdown-panel";
 import { BudgetManagerDialog } from "@/components/finance/budget-manager-dialog";
+import { TransactionFormModal } from "@/components/finance/transaction-form-modal";
 import {
   formatCurrencyBRL,
   getBudgetStatus,
@@ -47,6 +48,14 @@ export function FinanceOverview({
     () => getBudgetStatus(transactions, categories, budgets, now),
     [transactions, categories, budgets, now]
   );
+
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
+  function openEdit(transaction: Transaction) {
+    setEditingTransaction(transaction);
+    setIsFormOpen(true);
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -101,7 +110,7 @@ export function FinanceOverview({
         </div>
         <div className="space-y-3 lg:col-span-1">
           <h2 className="text-sm font-semibold text-foreground">Vence nos próximos 7 dias</h2>
-          <DueAlertsPanel alerts={dueAlerts} clients={clients} />
+          <DueAlertsPanel alerts={dueAlerts} clients={clients} onEdit={openEdit} />
         </div>
         <div className="space-y-3 lg:col-span-1">
           <h2 className="text-sm font-semibold text-foreground">Projeção — próximos 3 meses</h2>
@@ -115,6 +124,14 @@ export function FinanceOverview({
       <p className="text-center text-[11px] text-muted-foreground/70">
         Referência: {format(now, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}
       </p>
+
+      <TransactionFormModal
+        isOpen={isFormOpen}
+        editing={editingTransaction}
+        clients={clients}
+        categories={categories}
+        onClose={() => setIsFormOpen(false)}
+      />
     </div>
   );
 }

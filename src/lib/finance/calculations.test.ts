@@ -241,9 +241,34 @@ test("filterTransactions com status atrasado ignora o período e traz vencidos d
 test("getClientStats agrega recebido, a receber e atrasado por cliente", () => {
   const clients: Client[] = [{ id: "c1", name: "Cliente A", color: "#000", kind: "PJ" }];
   const transactions = [
-    makeTransaction({ id: "a", clientId: "c1", kind: "receita", status: "pago", amountCents: 50000, dueDate: "2026-07-05" }),
-    makeTransaction({ id: "b", clientId: "c1", kind: "receita", status: "pendente", amountCents: 20000, dueDate: "2026-07-20" }),
-    makeTransaction({ id: "c", clientId: "c1", kind: "receita", status: "nao_pago", amountCents: 10000, dueDate: "2026-07-01" }),
+    makeTransaction({
+      id: "a",
+      clientId: "c1",
+      kind: "receita",
+      status: "pago",
+      amountCents: 50000,
+      dueDate: "2026-07-05",
+      createdAt: "2026-06-01T00:00:00.000Z",
+    }),
+    makeTransaction({
+      id: "b",
+      clientId: "c1",
+      kind: "receita",
+      status: "pendente",
+      amountCents: 20000,
+      dueDate: "2026-07-20",
+      createdAt: "2026-06-10T00:00:00.000Z",
+    }),
+    makeTransaction({
+      id: "c",
+      clientId: "c1",
+      kind: "receita",
+      status: "nao_pago",
+      amountCents: 10000,
+      dueDate: "2026-07-01",
+      // Vencimento mais distante que "b", mas criado ANTES — não deve contar como "último lançamento".
+      createdAt: "2026-06-05T00:00:00.000Z",
+    }),
     makeTransaction({ id: "d", clientId: null, kind: "receita", status: "pago", amountCents: 99999, dueDate: "2026-07-05" }),
   ];
 
@@ -252,7 +277,7 @@ test("getClientStats agrega recebido, a receber e atrasado por cliente", () => {
   assert.equal(stats.receivableCents, 30000);
   assert.equal(stats.overdueCents, 10000);
   assert.equal(stats.transactionCount, 3);
-  assert.equal(stats.lastDueDate, "2026-07-20");
+  assert.equal(stats.lastCreatedAt, "2026-06-10T00:00:00.000Z");
 });
 
 test("getBudgetStatus compara gasto do mês com o limite por grupo", () => {

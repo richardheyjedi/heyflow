@@ -70,7 +70,11 @@ export function TransactionKindTab({
   const copy = KIND_COPY[kind];
   const scoped = useMemo(() => transactions.filter((t) => t.kind === kind), [transactions, kind]);
 
-  const [filters, setFilters] = useState<TransactionFilters>({ ...DEFAULT_FILTERS, period: "next_30_days" });
+  // DEFAULT_FILTERS usa período "Mês atual" — um período fixo pra frente (ex.:
+  // "próximos 30 dias") escondia, por padrão, qualquer item já vencido (mesmo
+  // dentro do mês corrente), mesmo aparecendo no painel "Vence em 7 dias" da
+  // Visão Geral.
+  const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [chargeTarget, setChargeTarget] = useState<Transaction | null>(null);
@@ -151,7 +155,14 @@ export function TransactionKindTab({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <MetricCard label={copy.firstKpi.label} value={formatCurrencyBRL(firstKpiCents)} icon={copy.firstKpi.icon} accent="violet" />
         <MetricCard label={copy.secondKpi.label} value={formatCurrencyBRL(secondKpiCents)} icon={copy.secondKpi.icon} accent="violet" />
-        <MetricCard label="Atrasado" value={formatCurrencyBRL(overdueCents)} icon={Clock} accent="rose" />
+        <button
+          type="button"
+          onClick={() => setFilters((prev) => ({ ...prev, status: "atrasado" }))}
+          className="text-left transition-transform hover:scale-[1.01]"
+          title="Ver todos os atrasados, independente do período"
+        >
+          <MetricCard label="Atrasado" value={formatCurrencyBRL(overdueCents)} icon={Clock} accent="rose" />
+        </button>
       </div>
 
       <div className="rounded-2xl border border-border/70 bg-card/60 p-5">
@@ -195,7 +206,7 @@ export function TransactionKindTab({
         editing={editingTransaction}
         clients={clients}
         categories={categories}
-        defaults={{ kind, scope: "PJ" }}
+        defaults={{ kind, scope: "PJ", isGoon: false }}
         onClose={() => setIsFormOpen(false)}
       />
       <ScheduleChargeDialog transaction={chargeTarget} clients={clients} onClose={() => setChargeTarget(null)} />

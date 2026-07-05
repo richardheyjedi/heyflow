@@ -200,7 +200,7 @@ function ClientCard({ stats }: { stats: ClientStats }) {
         />
         <Stat
           label="Último lançamento"
-          value={stats.lastDueDate ? format(parseISO(stats.lastDueDate), "dd MMM yyyy", { locale: ptBR }) : "—"}
+          value={stats.lastCreatedAt ? format(parseISO(stats.lastCreatedAt), "dd MMM yyyy", { locale: ptBR }) : "—"}
         />
       </div>
       <p className="text-[11px] text-muted-foreground">{stats.transactionCount} lançamento(s)</p>
