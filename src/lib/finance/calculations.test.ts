@@ -5,15 +5,17 @@ import {
   formatCurrencyBRL,
   generateNextOccurrence,
   getBudgetStatus,
+  getClientStats,
   getDRE,
   getExpenseBreakdownByGroup,
   getMonthSettledStatus,
   getPaymentCutoffs,
   getTotals,
   getUpcomingDue,
+  isTransactionOverdue,
   projectBalance,
 } from "@/lib/finance/calculations";
-import { DEFAULT_FILTERS, type Budget, type Category, type Transaction } from "@/lib/finance/types";
+import { DEFAULT_FILTERS, type Budget, type Category, type Client, type Transaction } from "@/lib/finance/types";
 
 const REFERENCE = new Date("2026-07-15T12:00:00.000Z");
 
@@ -211,6 +213,45 @@ test("getExpenseBreakdownByGroup soma despesas do mês por grupo de categoria", 
     { group: "casa", totalCents: 35000 },
     { group: "negocio", totalCents: 50000 },
   ]);
+});
+
+test("isTransactionOverdue considera vencido e não pago, ignora o dia atual", () => {
+  assert.equal(isTransactionOverdue(makeTransaction({ dueDate: "2026-07-10", status: "nao_pago" }), REFERENCE), true);
+  assert.equal(isTransactionOverdue(makeTransaction({ dueDate: "2026-07-15", status: "nao_pago" }), REFERENCE), false);
+  assert.equal(isTransactionOverdue(makeTransaction({ dueDate: "2026-07-10", status: "pago" }), REFERENCE), false);
+  assert.equal(isTransactionOverdue(makeTransaction({ dueDate: "2026-07-20", status: "nao_pago" }), REFERENCE), false);
+});
+
+test("filterTransactions com status atrasado ignora o período e traz vencidos de qualquer mês", () => {
+  const transactions = [
+    makeTransaction({ id: "mes-passado", dueDate: "2026-05-01", status: "nao_pago" }),
+    makeTransaction({ id: "atrasada-mes-atual", dueDate: "2026-07-10", status: "pendente" }),
+    makeTransaction({ id: "paga-atrasada", dueDate: "2026-07-01", status: "pago" }),
+    makeTransaction({ id: "futura", dueDate: "2026-07-20", status: "nao_pago" }),
+  ];
+
+  const overdue = filterTransactions(transactions, { ...DEFAULT_FILTERS, status: "atrasado" }, REFERENCE);
+  assert.deepEqual(
+    overdue.map((t) => t.id).sort(),
+    ["atrasada-mes-atual", "mes-passado"]
+  );
+});
+
+test("getClientStats agrega recebido, a receber e atrasado por cliente", () => {
+  const clients: Client[] = [{ id: "c1", name: "Cliente A", color: "#000", kind: "PJ" }];
+  const transactions = [
+    makeTransaction({ id: "a", clientId: "c1", kind: "receita", status: "pago", amountCents: 50000, dueDate: "2026-07-05" }),
+    makeTransaction({ id: "b", clientId: "c1", kind: "receita", status: "pendente", amountCents: 20000, dueDate: "2026-07-20" }),
+    makeTransaction({ id: "c", clientId: "c1", kind: "receita", status: "nao_pago", amountCents: 10000, dueDate: "2026-07-01" }),
+    makeTransaction({ id: "d", clientId: null, kind: "receita", status: "pago", amountCents: 99999, dueDate: "2026-07-05" }),
+  ];
+
+  const [stats] = getClientStats(transactions, clients, REFERENCE);
+  assert.equal(stats.receivedCents, 50000);
+  assert.equal(stats.receivableCents, 30000);
+  assert.equal(stats.overdueCents, 10000);
+  assert.equal(stats.transactionCount, 3);
+  assert.equal(stats.lastDueDate, "2026-07-20");
 });
 
 test("getBudgetStatus compara gasto do mês com o limite por grupo", () => {

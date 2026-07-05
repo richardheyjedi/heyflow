@@ -61,17 +61,21 @@ const RECURRENCE_ITEMS: Record<string, string> = {
   anual: "Anual",
 };
 
+type TransactionDefaults = Partial<Pick<Transaction, "kind" | "scope" | "clientId" | "category">>;
+
 export function TransactionFormModal({
   isOpen,
   editing,
   clients,
   categories,
+  defaults,
   onClose,
 }: {
   isOpen: boolean;
   editing: Transaction | null;
   clients: Client[];
   categories: Category[];
+  defaults?: TransactionDefaults;
   onClose: () => void;
 }) {
   return (
@@ -82,6 +86,7 @@ export function TransactionFormModal({
           editing={editing}
           clients={clients}
           categories={categories}
+          defaults={defaults}
           onClose={onClose}
         />
       </DialogContent>
@@ -93,24 +98,26 @@ function TransactionForm({
   editing,
   clients: initialClients,
   categories: initialCategories,
+  defaults,
   onClose,
 }: {
   editing: Transaction | null;
   clients: Client[];
   categories: Category[];
+  defaults?: TransactionDefaults;
   onClose: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [clients, setClients] = useState<Client[]>(initialClients);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
 
-  const [kind, setKind] = useState<TransactionKind>(editing?.kind ?? "despesa");
-  const [scope, setScope] = useState<OwnerScope>(editing?.scope ?? "PJ");
+  const [kind, setKind] = useState<TransactionKind>(editing?.kind ?? defaults?.kind ?? "despesa");
+  const [scope, setScope] = useState<OwnerScope>(editing?.scope ?? defaults?.scope ?? "PJ");
   const [description, setDescription] = useState(editing?.description ?? "");
   const [amount, setAmount] = useState(editing ? centsToInputValue(editing.amountCents) : "");
-  const [category, setCategory] = useState(editing?.category ?? initialCategories[0]?.name ?? "Outros");
+  const [category, setCategory] = useState(editing?.category ?? defaults?.category ?? initialCategories[0]?.name ?? "Outros");
   const [newCategory, setNewCategory] = useState("");
-  const [clientId, setClientId] = useState<string>(editing?.clientId ?? "none");
+  const [clientId, setClientId] = useState<string>(editing?.clientId ?? defaults?.clientId ?? "none");
   const [newClientName, setNewClientName] = useState("");
   const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);

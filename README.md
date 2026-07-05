@@ -86,6 +86,12 @@ Os componentes (`src/components/finance/`) recebem os dados via props a partir d
 
 **Alertas automáticos**: um job (`src/lib/finance/notifications.ts`, chamado em `(app)/layout.tsx` junto com o job de tarefas) roda a cada carregamento e gera notificações no mesmo sino do TaskFlow para três situações: mês quitado, corte de pagamento a menos de 3 dias com saldo pendente, e orçamento de grupo estourado. Cada uma é única por mês (identificada por um marcador na mensagem) e é *atualizada* em vez de duplicada se os valores mudarem.
 
+**Contas em atraso**: `isTransactionOverdue` (vencido e não pago, por dia) alimenta três coisas — o destaque vermelho das linhas atrasadas na tabela de Lançamentos, o chip clicável "Atrasado" (que soma todos os atrasados independente do mês) e o filtro de status "Atrasados", que **ignora o período selecionado** de propósito: uma conta vencida em um mês anterior continua aparecendo mesmo com "Mês atual" selecionado.
+
+**Aba Clientes**: cada cliente/fornecedor vira um card com nome, tipo (PF/PJ) e cor editáveis inline, mais estatísticas agregadas (recebido, a receber, atrasado, pago/a pagar quando aplicável, último lançamento). Excluir um cliente não apaga os lançamentos ligados a ele — eles só ficam sem cliente (`onDelete: SetNull` no schema).
+
+**Aba GOON**: recorte "só recebimentos" — mostra apenas lançamentos de receita (de qualquer cliente), com seus próprios KPIs (recebido/a receber/atrasado), gráfico de entradas por mês e tabela, sem misturar com despesas do financeiro geral. Reaproveita os mesmos componentes e Server Actions de Lançamentos, só filtrando por `kind === "receita"`.
+
 O app nasce sem nenhum lançamento, cliente, transação ou orçamento de exemplo — só a taxonomia inicial de categorias (incluindo "Contas de Casa"). Comece cadastrando seus lançamentos reais.
 
 ## Autenticação

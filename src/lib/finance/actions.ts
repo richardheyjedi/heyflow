@@ -240,6 +240,24 @@ export async function createFinanceClient(name: string, kind: OwnerScope) {
   return toDomainClient(client);
 }
 
+export async function updateFinanceClient(id: string, data: { name: string; kind: OwnerScope; color: string }) {
+  const trimmed = data.name.trim();
+  if (!trimmed) throw new Error("Nome do cliente não pode ser vazio.");
+
+  const client = await prisma.financeClient.update({
+    where: { id },
+    data: { name: trimmed, kind: data.kind, color: data.color },
+  });
+  revalidateFinance();
+  return toDomainClient(client);
+}
+
+/** Lançamentos ligados a este cliente ficam sem cliente (onDelete: SetNull) — não são apagados. */
+export async function deleteFinanceClient(id: string) {
+  await prisma.financeClient.delete({ where: { id } });
+  revalidateFinance();
+}
+
 export async function scheduleFinanceReminder(transactionId: string, date: string, message: string) {
   // Integração real com o TaskFlow: cria uma Task de verdade para o lembrete.
   const task = await createTask({

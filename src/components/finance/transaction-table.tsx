@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -35,7 +36,7 @@ import {
   updateFinanceTransactionCategory,
   updateFinanceTransactionStatus,
 } from "@/lib/finance/actions";
-import { formatCurrencyBRL, getClientName } from "@/lib/finance/calculations";
+import { formatCurrencyBRL, getClientName, isTransactionOverdue } from "@/lib/finance/calculations";
 import { cn } from "@/lib/utils";
 import type { Category, Client, Transaction, TransactionStatus } from "@/lib/finance/types";
 
@@ -183,13 +184,15 @@ export function TransactionTable({
           {sorted.map((transaction) => {
             const clientName = getClientName(clients, transaction.clientId);
             const group = groupByCategoryName.get(transaction.category) ?? "outro";
+            const overdue = isTransactionOverdue(transaction);
 
             return (
               <tr
                 key={transaction.id}
                 className={cn(
                   "group transition-colors hover:bg-accent/30",
-                  selectedIds.has(transaction.id) && "bg-primary/5"
+                  selectedIds.has(transaction.id) && "bg-primary/5",
+                  overdue && !selectedIds.has(transaction.id) && "bg-priority-urgent/5"
                 )}
               >
                 <td className="border-b border-border/40 px-3 py-2">
@@ -234,10 +237,14 @@ export function TransactionTable({
                   </Select>
                 </td>
                 <td className="whitespace-nowrap border-b border-border/40 px-3 py-2 text-muted-foreground">
-                  <div>{format(parseISO(transaction.dueDate), "dd MMM", { locale: ptBR })}</div>
+                  <div className={cn("flex items-center gap-1", overdue && "font-medium text-priority-urgent")}>
+                    {overdue && <AlertTriangle className="size-3" />}
+                    {format(parseISO(transaction.dueDate), "dd MMM", { locale: ptBR })}
+                  </div>
                   {transaction.paidAt && (
                     <div className="text-[11px]">Pago {format(parseISO(transaction.paidAt), "dd MMM", { locale: ptBR })}</div>
                   )}
+                  {overdue && <div className="text-[11px] text-priority-urgent">Atrasado</div>}
                 </td>
                 <td
                   className={cn(

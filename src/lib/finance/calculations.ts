@@ -12,6 +12,7 @@ import {
   isBefore,
   isWithinInterval,
   parseISO,
+  startOfDay,
   startOfMonth,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -49,6 +50,12 @@ export function getClientName(clients: Client[], clientId: string | null): strin
   return clients.find((c) => c.id === clientId)?.name ?? null;
 }
 
+/** Vencido e ainda não pago — comparação por dia (ignora horário) para não marcar o próprio dia do vencimento como atrasado. */
+export function isTransactionOverdue(transaction: Transaction, referenceDate: Date = new Date()): boolean {
+  if (transaction.status === "pago") return false;
+  return isBefore(startOfDay(parseISO(transaction.dueDate)), startOfDay(referenceDate));
+}
+
 // ---------------------------------------------------------------------------
 // Filtros
 // ---------------------------------------------------------------------------
@@ -61,11 +68,18 @@ export function filterTransactions(
 ): Transaction[] {
   const { start, end } = getPeriodRange(filters, referenceDate);
   const groupByCategoryName = new Map(categories.map((c) => [c.name, c.group]));
+  // "Atrasados" é um recorte que ignora o período selecionado — do contrário,
+  // uma conta vencida em um mês anterior nunca apareceria com o filtro "Mês atual".
+  const overdueOnly = filters.status === "atrasado";
 
   return transactions.filter((t) => {
-    const due = parseISO(t.dueDate);
-    if (!isWithinInterval(due, { start, end })) return false;
-    if (filters.status !== "all" && t.status !== filters.status) return false;
+    if (overdueOnly) {
+      if (!isTransactionOverdue(t, referenceDate)) return false;
+    } else {
+      const due = parseISO(t.dueDate);
+      if (!isWithinInterval(due, { start, end })) return false;
+      if (filters.status !== "all" && t.status !== filters.status) return false;
+    }
     if (filters.clientId !== "all" && t.clientId !== filters.clientId) return false;
     if (filters.scope !== "all" && t.scope !== filters.scope) return false;
     if (filters.categoryGroup !== "all" && groupByCategoryName.get(t.category) !== filters.categoryGroup) return false;
@@ -450,6 +464,37 @@ export function getBudgetStatus(
       isOverBudget: limitCents !== null && spentCents > limitCents,
     };
   }).filter((entry) => entry.limitCents !== null || entry.spentCents > 0);
+}
+
+// ---------------------------------------------------------------------------
+// Estatísticas por cliente/fornecedor
+// ---------------------------------------------------------------------------
+
+export type ClientStats = {
+  client: Client;
+  receivedCents: number;
+  receivableCents: number;
+  paidOutCents: number;
+  payableCents: number;
+  overdueCents: number;
+  transactionCount: number;
+  lastDueDate: string | null;
+};
+
+export function getClientStats(transactions: Transaction[], clients: Client[], referenceDate: Date = new Date()): ClientStats[] {
+  return clients.map((client) => {
+    const own = transactions.filter((t) => t.clientId === client.id);
+    return {
+      client,
+      receivedCents: sumBy(own, (t) => t.kind === "receita" && t.status === "pago", "amountCents"),
+      receivableCents: sumBy(own, (t) => t.kind === "receita" && t.status !== "pago", "amountCents"),
+      paidOutCents: sumBy(own, (t) => t.kind === "despesa" && t.status === "pago", "amountCents"),
+      payableCents: sumBy(own, (t) => t.kind === "despesa" && t.status !== "pago", "amountCents"),
+      overdueCents: own.filter((t) => isTransactionOverdue(t, referenceDate)).reduce((s, t) => s + t.amountCents, 0),
+      transactionCount: own.length,
+      lastDueDate: own.length > 0 ? own.reduce((latest, t) => (t.dueDate > latest ? t.dueDate : latest), own[0].dueDate) : null,
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------

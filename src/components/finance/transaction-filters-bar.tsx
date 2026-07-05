@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   CATEGORY_GROUP_LABEL,
   type CategoryGroup,
@@ -28,6 +29,7 @@ const STATUS_ITEMS: Record<string, string> = {
   pago: "Pago",
   nao_pago: "Não pago",
   pendente: "Pendente",
+  atrasado: "Atrasados",
 };
 
 const GROUP_ITEMS: Record<string, string> = {
@@ -50,10 +52,17 @@ export function TransactionFiltersBar({
   };
   const scopeItems: Record<string, string> = { all: "PF + PJ", PF: "Somente PF", PJ: "Somente PJ" };
 
+  const isOverdueFilter = filters.status === "atrasado";
+
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Select items={PERIOD_ITEMS} value={filters.period} onValueChange={(v) => v && onChange({ period: v as PeriodFilter })}>
-        <SelectTrigger size="sm" className="w-44">
+      <Select
+        items={PERIOD_ITEMS}
+        value={filters.period}
+        onValueChange={(v) => v && onChange({ period: v as PeriodFilter })}
+        disabled={isOverdueFilter}
+      >
+        <SelectTrigger size="sm" className="w-44" title={isOverdueFilter ? "Ignorado — mostrando atrasados de qualquer período" : undefined}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -65,7 +74,7 @@ export function TransactionFiltersBar({
         </SelectContent>
       </Select>
 
-      {filters.period === "custom" && (
+      {filters.period === "custom" && !isOverdueFilter && (
         <>
           <Input
             type="date"
@@ -82,8 +91,12 @@ export function TransactionFiltersBar({
         </>
       )}
 
-      <Select items={STATUS_ITEMS} value={filters.status} onValueChange={(v) => v && onChange({ status: v as TransactionStatus | "all" })}>
-        <SelectTrigger size="sm" className="w-36">
+      <Select
+        items={STATUS_ITEMS}
+        value={filters.status}
+        onValueChange={(v) => v && onChange({ status: v as TransactionStatus | "all" | "atrasado" })}
+      >
+        <SelectTrigger size="sm" className={cn("w-36", isOverdueFilter && "border-priority-urgent/50 text-priority-urgent")}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

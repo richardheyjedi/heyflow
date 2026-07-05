@@ -101,7 +101,8 @@ export type TransactionFilters = {
   period: PeriodFilter;
   customStart?: string;
   customEnd?: string;
-  status: TransactionStatus | "all";
+  /** "atrasado" é um filtro derivado (vencido e não pago) que ignora o período selecionado. */
+  status: TransactionStatus | "all" | "atrasado";
   clientId: string | "all";
   scope: OwnerScope | "all";
   categoryGroup: CategoryGroup | "all";

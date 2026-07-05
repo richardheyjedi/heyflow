@@ -16,8 +16,9 @@ import {
   markManyFinanceTransactionsPaid,
   markManyFinanceTransactionsUnpaid,
 } from "@/lib/finance/actions";
-import { filterTransactions } from "@/lib/finance/calculations";
+import { filterTransactions, formatCurrencyBRL, isTransactionOverdue } from "@/lib/finance/calculations";
 import { DEFAULT_FILTERS, type Category, type Client, type Transaction } from "@/lib/finance/types";
+import { cn } from "@/lib/utils";
 
 export function TransactionsTab({
   transactions,
@@ -39,6 +40,30 @@ export function TransactionsTab({
     () => filterTransactions(transactions, filters, new Date(), categories),
     [transactions, filters, categories]
   );
+
+  // O chip "Atrasado" precisa ignorar o período (mesma lógica do filtro
+  // "atrasado") — senão uma conta vencida em outro mês nunca apareceria aqui,
+  // que era exatamente o problema original.
+  const overdueTransactions = useMemo(
+    () => filterTransactions(transactions, { ...filters, status: "atrasado" }, new Date(), categories),
+    [transactions, filters, categories]
+  );
+
+  const summary = useMemo(() => {
+    const paid = filtered.filter((t) => t.status === "pago");
+    const open = filtered.filter((t) => t.status !== "pago" && !isTransactionOverdue(t));
+    const sum = (items: Transaction[]) => items.reduce((s, t) => s + t.amountCents, 0);
+    return {
+      count: filtered.length,
+      totalCents: sum(filtered),
+      paidCount: paid.length,
+      paidCents: sum(paid),
+      openCount: open.length,
+      openCents: sum(open),
+      overdueCount: overdueTransactions.length,
+      overdueCents: sum(overdueTransactions),
+    };
+  }, [filtered, overdueTransactions]);
 
   // Só considera selecionados os lançamentos que ainda estão visíveis com os
   // filtros atuais (evita agir sobre linhas escondidas por um filtro novo).
@@ -119,6 +144,19 @@ export function TransactionsTab({
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <SummaryChip label="Total" count={summary.count} amountCents={summary.totalCents} />
+        <SummaryChip label="Pago" count={summary.paidCount} amountCents={summary.paidCents} tone="primary" />
+        <SummaryChip label="Em aberto" count={summary.openCount} amountCents={summary.openCents} tone="amber" />
+        <SummaryChip
+          label="Atrasado"
+          count={summary.overdueCount}
+          amountCents={summary.overdueCents}
+          tone="urgent"
+          onClick={summary.overdueCount > 0 ? () => setFilters((prev) => ({ ...prev, status: "atrasado" })) : undefined}
+        />
+      </div>
+
       <BulkActionsBar
         count={visibleSelectedIds.size}
         isPending={isBulkPending}
@@ -148,5 +186,44 @@ export function TransactionsTab({
       />
       <ScheduleChargeDialog transaction={chargeTarget} clients={clients} onClose={() => setChargeTarget(null)} />
     </div>
+  );
+}
+
+function SummaryChip({
+  label,
+  count,
+  amountCents,
+  tone = "default",
+  onClick,
+}: {
+  label: string;
+  count: number;
+  amountCents: number;
+  tone?: "default" | "primary" | "amber" | "urgent";
+  onClick?: () => void;
+}) {
+  const toneStyles = {
+    default: "border-border/70 bg-card/60 text-foreground",
+    primary: "border-primary/30 bg-primary/10 text-primary",
+    amber: "border-priority-medium/30 bg-priority-medium/10 text-priority-medium",
+    urgent: "border-priority-urgent/30 bg-priority-urgent/10 text-priority-urgent",
+  }[tone];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className={cn(
+        "flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-medium disabled:cursor-default",
+        toneStyles,
+        onClick && "cursor-pointer transition-opacity hover:opacity-80"
+      )}
+    >
+      <span>{label}</span>
+      <span className="opacity-70">
+        {count} · {formatCurrencyBRL(amountCents)}
+      </span>
+    </button>
   );
 }

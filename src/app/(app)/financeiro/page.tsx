@@ -1,6 +1,8 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FinanceOverview } from "@/components/finance/finance-overview";
 import { TransactionsTab } from "@/components/finance/transactions-tab";
+import { ClientsTab } from "@/components/finance/clients-tab";
+import { GoonTab } from "@/components/finance/goon-tab";
 import { DreTab } from "@/components/finance/dre-tab";
 import { getFinanceBudgets, getFinanceCategories, getFinanceClients, getFinanceTransactions } from "@/lib/finance/data";
 
@@ -29,6 +31,8 @@ export default async function FinanceiroPage() {
         <TabsList>
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="transactions">Lançamentos</TabsTrigger>
+          <TabsTrigger value="goon">GOON</TabsTrigger>
+          <TabsTrigger value="clients">Clientes</TabsTrigger>
           <TabsTrigger value="dre">DRE</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-4">
@@ -36,6 +40,12 @@ export default async function FinanceiroPage() {
         </TabsContent>
         <TabsContent value="transactions" className="mt-4">
           <TransactionsTab transactions={transactions} clients={clients} categories={categories} />
+        </TabsContent>
+        <TabsContent value="goon" className="mt-4">
+          <GoonTab transactions={transactions} clients={clients} categories={categories} />
+        </TabsContent>
+        <TabsContent value="clients" className="mt-4">
+          <ClientsTab transactions={transactions} clients={clients} />
         </TabsContent>
         <TabsContent value="dre" className="mt-4">
           <DreTab transactions={transactions} />
