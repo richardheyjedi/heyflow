@@ -1,0 +1,210 @@
+// Prisma schema — TaskFlow
+// SQLite para uso local; troque `provider`/`url` para "postgresql" quando for para produção.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  done
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum RecurrenceRule {
+  daily
+  weekly
+  monthly
+  weekdays
+}
+
+enum NotificationType {
+  due_soon
+  overdue
+  completed
+}
+
+enum FinanceTransactionKind {
+  receita
+  despesa
+}
+
+enum FinanceOwnerScope {
+  PF
+  PJ
+}
+
+enum FinanceTransactionStatus {
+  pago
+  nao_pago
+  pendente
+}
+
+enum FinanceRecurrenceFrequency {
+  semanal
+  quinzenal
+  mensal
+  anual
+}
+
+model Project {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  color       String    @default("#8B5CF6")
+  icon        String    @default("Folder")
+  deadline    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tasks Task[]
+
+  @@map("projects")
+}
+
+model Task {
+  id              String          @id @default(cuid())
+  title           String
+  description     String?
+  status          TaskStatus      @default(todo)
+  priority        TaskPriority    @default(medium)
+  dueDate         DateTime?
+  dueTime         String?
+  order           Int             @default(0)
+  recurrenceRule  RecurrenceRule?
+  completedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  subtasks      Subtask[]
+  tags          TaskTag[]
+  notifications Notification[]
+  financeReminder FinanceReminder?
+
+  @@map("tasks")
+}
+
+model Subtask {
+  id     String  @id @default(cuid())
+  taskId String
+  title  String
+  done   Boolean @default(false)
+  order  Int     @default(0)
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("subtasks")
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+  color String @default("#A855F7")
+
+  tasks TaskTag[]
+
+  @@map("tags")
+}
+
+model TaskTag {
+  taskId String
+  tagId  String
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+  @@map("task_tags")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  taskId    String?
+  type      NotificationType
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model FinanceClient {
+  id        String            @id @default(cuid())
+  name      String
+  color     String            @default("#A855F7")
+  kind      FinanceOwnerScope
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  transactions FinanceTransaction[]
+
+  @@map("finance_clients")
+}
+
+model FinanceCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("finance_categories")
+}
+
+model FinanceTransaction {
+  id          String                     @id @default(cuid())
+  kind        FinanceTransactionKind
+  scope       FinanceOwnerScope
+  description String
+  amountCents Int
+  category    String
+  dueDate     DateTime
+  paidAt      DateTime?
+  status      FinanceTransactionStatus   @default(pendente)
+
+  // Recorrência — achatada em colunas simples (sem tipo composto no SQLite).
+  recurrenceFrequency FinanceRecurrenceFrequency?
+  recurrenceInterval  Int?
+  recurrenceNextDate  DateTime?
+
+  originTransactionId String?
+
+  clientId String?
+  client   FinanceClient? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  reminder  FinanceReminder?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("finance_transactions")
+}
+
+model FinanceReminder {
+  id            String   @id @default(cuid())
+  transactionId String   @unique
+  taskId        String?  @unique
+  date          DateTime
+  message       String
+  createdAt     DateTime @default(now())
+
+  transaction FinanceTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  task        Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@map("finance_reminders")
+}
