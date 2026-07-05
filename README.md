@@ -88,6 +88,33 @@ Os componentes (`src/components/finance/`) recebem os dados via props a partir d
 
 O app nasce sem nenhum lançamento, cliente, transação ou orçamento de exemplo — só a taxonomia inicial de categorias (incluindo "Contas de Casa"). Comece cadastrando seus lançamentos reais.
 
+## Autenticação
+
+App de uso pessoal, protegido por uma senha única (sem cadastro de usuários). `src/proxy.ts` intercepta toda rota que não seja `/login` e redireciona quem não tem uma sessão válida.
+
+Variáveis necessárias (`.env` local e nas envs de Preview/Production na Vercel):
+
+| Variável | Descrição |
+|---|---|
+| `APP_PASSWORD` | Senha para acessar o app. |
+| `SESSION_SECRET` | Chave usada para assinar o cookie de sessão (JWT via `jose`). Gere com `openssl rand -base64 32`. |
+
+A sessão dura 30 dias (cookie `httpOnly`, `secure` em produção). Logout pelo menu do avatar na topbar.
+
+## Deploy (Vercel + Turso)
+
+O banco local usa um arquivo SQLite (`file:./dev.db`), que não funciona em produção serverless. Em produção, aponte `DATABASE_URL` para um banco [Turso](https://turso.tech) (`libsql://...`) — o mesmo driver adapter (`@prisma/adapter-libsql`) já suporta ambos, bastando definir `TURSO_AUTH_TOKEN`.
+
+**Importante**: a engine de migração do Prisma (`prisma migrate dev|deploy`) só entende URLs `file:` para o provider `sqlite` — ela rejeita `libsql://` remoto (erro `P1013`). Por isso, `npm run build` **não** roda `prisma migrate deploy`. Sempre que criar uma migração nova localmente, aplique-a manualmente no Turso:
+
+```bash
+node --env-file=.env.turso.local scripts/turso-migrate.mjs
+```
+
+(`.env.turso.local`, gitignored, deve conter `DATABASE_URL` e `TURSO_AUTH_TOKEN` do banco Turso.) O script lê `prisma/migrations/*/migration.sql` em ordem e aplica via `@libsql/client`, mantendo a tabela `_prisma_migrations` para bookkeeping.
+
+Variáveis a configurar na Vercel (Production + Preview): `DATABASE_URL`, `TURSO_AUTH_TOKEN`, `APP_PASSWORD`, `SESSION_SECRET`.
+
 ## Trocar para PostgreSQL
 
 1. Em `prisma/schema.prisma`, mude `provider = "sqlite"` para `provider = "postgresql"` no bloco `datasource`.
