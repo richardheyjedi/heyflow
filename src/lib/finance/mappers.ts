@@ -9,7 +9,7 @@ import type {
   FinanceReminder as PrismaFinanceReminder,
   FinanceTransaction as PrismaFinanceTransaction,
 } from "@/generated/prisma/client";
-import type { Budget, Category, Client, Reminder, Transaction } from "@/lib/finance/types";
+import type { Budget, Category, Client, Transaction } from "@/lib/finance/types";
 
 type TransactionRow = PrismaFinanceTransaction & { reminder?: PrismaFinanceReminder | null };
 
@@ -69,13 +69,3 @@ export function toDomainBudget(row: PrismaFinanceBudget): Budget {
   return { id: row.id, group: row.group, limitCents: row.limitCents };
 }
 
-export function toDomainReminder(row: PrismaFinanceReminder): Reminder {
-  return {
-    id: row.id,
-    transactionId: row.transactionId,
-    taskId: row.taskId,
-    date: formatDateOnly(row.date),
-    message: row.message,
-    createdAt: row.createdAt.toISOString(),
-  };
-}

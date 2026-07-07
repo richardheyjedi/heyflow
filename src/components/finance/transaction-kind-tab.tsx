@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useMemo, useState } from "react";
 import { ArrowDownCircle, ArrowUpCircle, CheckCircle2, Clock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MetricCard } from "@/components/taskflow/dashboard/metric-card";
@@ -11,12 +10,7 @@ import { TransactionTable } from "@/components/finance/transaction-table";
 import { TransactionFormModal } from "@/components/finance/transaction-form-modal";
 import { ScheduleChargeDialog } from "@/components/finance/schedule-charge-dialog";
 import { BulkActionsBar } from "@/components/finance/bulk-actions-bar";
-import {
-  deleteManyFinanceTransactions,
-  markManyFinanceTransactionsPaid,
-  markManyFinanceTransactionsUnpaid,
-  revertFinanceTransactionsStatus,
-} from "@/lib/finance/actions";
+import { useTransactionMutations } from "@/components/finance/use-transaction-mutations";
 import { parseISO } from "date-fns";
 import {
   filterTransactions,
@@ -74,7 +68,11 @@ export function TransactionKindTab({
 }) {
   const copy = KIND_COPY[kind];
   const referenceDate = useMemo(() => parseISO(todayISO), [todayISO]);
-  const scoped = useMemo(() => transactions.filter((t) => t.kind === kind), [transactions, kind]);
+  const mutations = useTransactionMutations(transactions, copy.itemLabel);
+  const scoped = useMemo(
+    () => mutations.transactions.filter((t) => t.kind === kind),
+    [mutations.transactions, kind]
+  );
 
   // DEFAULT_FILTERS usa período "Mês atual" — um período fixo pra frente (ex.:
   // "próximos 30 dias") escondia, por padrão, qualquer item já vencido (mesmo
@@ -85,7 +83,6 @@ export function TransactionKindTab({
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [chargeTarget, setChargeTarget] = useState<Transaction | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isBulkPending, startBulkTransition] = useTransition();
 
   const filtered = useMemo(
     () => filterTransactions(scoped, filters, referenceDate, categories),
@@ -129,63 +126,11 @@ export function TransactionKindTab({
     setSelectedIds(visibleSelectedIds.size === filtered.length ? new Set() : new Set(filtered.map((t) => t.id)));
   }
 
-  function handleBulkMarkPaid() {
-    const ids = Array.from(visibleSelectedIds);
-    const previous = filtered.filter((t) => visibleSelectedIds.has(t.id));
-    startBulkTransition(async () => {
-      const followUps = await markManyFinanceTransactionsPaid(ids);
-      toast.success(`${ids.length} ${copy.itemLabel}(s) marcado(s) como pago.`, {
-        action: {
-          label: "Desfazer",
-          onClick: () => {
-            startBulkTransition(async () => {
-              await revertFinanceTransactionsStatus(
-                previous.map((t) => ({
-                  id: t.id,
-                  previousStatus: t.status,
-                  previousPaidAt: t.paidAt,
-                  followUpId: followUps[t.id] ?? null,
-                }))
-              );
-              toast.success("Alteração desfeita.");
-            });
-          },
-        },
-      });
-      setSelectedIds(new Set());
-    });
-  }
-
-  function handleBulkMarkUnpaid() {
-    const ids = Array.from(visibleSelectedIds);
-    const previous = filtered.filter((t) => visibleSelectedIds.has(t.id));
-    startBulkTransition(async () => {
-      await markManyFinanceTransactionsUnpaid(ids);
-      toast.success(`${ids.length} ${copy.itemLabel}(s) marcado(s) como não pago.`, {
-        action: {
-          label: "Desfazer",
-          onClick: () => {
-            startBulkTransition(async () => {
-              await revertFinanceTransactionsStatus(
-                previous.map((t) => ({ id: t.id, previousStatus: t.status, previousPaidAt: t.paidAt, followUpId: null }))
-              );
-              toast.success("Alteração desfeita.");
-            });
-          },
-        },
-      });
-      setSelectedIds(new Set());
-    });
-  }
-
-  function handleBulkDelete() {
-    const ids = Array.from(visibleSelectedIds);
-    startBulkTransition(async () => {
-      await deleteManyFinanceTransactions(ids);
-      toast.success(`${ids.length} ${copy.itemLabel}(s) excluído(s).`);
-      setSelectedIds(new Set());
-    });
-  }
+  const selectedTransactions = useMemo(
+    () => filtered.filter((t) => visibleSelectedIds.has(t.id)),
+    [filtered, visibleSelectedIds]
+  );
+  const clearSelection = () => setSelectedIds(new Set());
 
   return (
     <div className="flex flex-col gap-6">
@@ -219,11 +164,11 @@ export function TransactionKindTab({
 
         <BulkActionsBar
           count={visibleSelectedIds.size}
-          isPending={isBulkPending}
-          onMarkPaid={handleBulkMarkPaid}
-          onMarkUnpaid={handleBulkMarkUnpaid}
-          onDelete={handleBulkDelete}
-          onClear={() => setSelectedIds(new Set())}
+          isPending={mutations.isPending}
+          onMarkPaid={() => mutations.markManyPaid(selectedTransactions, clearSelection)}
+          onMarkUnpaid={() => mutations.markManyUnpaid(selectedTransactions, clearSelection)}
+          onDelete={() => mutations.removeMany(Array.from(visibleSelectedIds), clearSelection)}
+          onClear={clearSelection}
         />
 
         <TransactionTable
@@ -232,6 +177,7 @@ export function TransactionKindTab({
           categories={categories}
           referenceDate={referenceDate}
           selectedIds={visibleSelectedIds}
+          mutations={mutations}
           onToggleRow={toggleRow}
           onToggleAll={toggleAll}
           onEdit={openEdit}

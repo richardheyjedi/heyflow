@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useOptimistic, useTransition } from "react";
 import { Check, ListChecks, Repeat, Clock } from "lucide-react";
 import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -21,10 +21,12 @@ export function TaskCard({
   compact?: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
 }) {
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const openEditTaskModal = useUiStore((s) => s.openEditTaskModal);
 
-  const isDone = task.status === "done";
+  // Otimista: o check aparece na hora do clique; o servidor sincroniza depois
+  // e, quando as props novas chegam, substituem este estado.
+  const [isDone, setOptimisticDone] = useOptimistic(task.status === "done");
   // dateOnlyToLocal: dueDate é meia-noite UTC — comparar/formatar direto no
   // fuso local marcava a tarefa como atrasada no próprio dia do vencimento e
   // exibia o dia anterior para quem está a oeste do UTC.
@@ -35,8 +37,9 @@ export function TaskCard({
 
   function handleToggle(e: React.MouseEvent) {
     e.stopPropagation();
-    startTransition(() => {
-      toggleTaskDone(task.id);
+    startTransition(async () => {
+      setOptimisticDone(!isDone);
+      await toggleTaskDone(task.id);
     });
   }
 
@@ -46,7 +49,6 @@ export function TaskCard({
       onClick={() => openEditTaskModal(task)}
       className={cn(
         "group relative cursor-pointer rounded-xl border border-border/70 bg-card/70 p-3 transition-all duration-200 animate-fade-slide-in hover:border-primary/40 hover:bg-card",
-        isPending && "opacity-60",
         compact && "p-2.5"
       )}
     >

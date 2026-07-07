@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   DndContext,
   PointerSensor,
@@ -30,7 +29,6 @@ export function WeekGrid({ initialColumns }: { initialColumns: WeekColumn[] }) {
   const [columns, setColumns] = useState(initialColumns);
   const [prevInitialColumns, setPrevInitialColumns] = useState(initialColumns);
   const [, startTransition] = useTransition();
-  const router = useRouter();
   const openCreateTaskModal = useUiStore((s) => s.openCreateTaskModal);
 
   if (initialColumns !== prevInitialColumns) {
@@ -63,9 +61,9 @@ export function WeekGrid({ initialColumns }: { initialColumns: WeekColumn[] }) {
       );
     });
 
+    // A Server Action já revalida as rotas — sem router.refresh() extra.
     startTransition(async () => {
       await moveTaskToDate(taskId, targetDate);
-      router.refresh();
     });
   }
 

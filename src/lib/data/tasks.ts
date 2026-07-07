@@ -8,7 +8,7 @@ export const taskInclude = {
   tags: { include: { tag: true } },
 } satisfies Prisma.TaskInclude;
 
-export function buildTaskWhere(filters?: TaskFilters): Prisma.TaskWhereInput {
+function buildTaskWhere(filters?: TaskFilters): Prisma.TaskWhereInput {
   if (!filters) return {};
   const where: Prisma.TaskWhereInput = {};
 
@@ -23,21 +23,6 @@ export function buildTaskWhere(filters?: TaskFilters): Prisma.TaskWhereInput {
   }
 
   return where;
-}
-
-export async function getTasks(filters?: TaskFilters) {
-  return prisma.task.findMany({
-    where: buildTaskWhere(filters),
-    include: taskInclude,
-    orderBy: [{ dueDate: "asc" }, { order: "asc" }],
-  });
-}
-
-export async function getTaskById(id: string) {
-  return prisma.task.findUnique({
-    where: { id },
-    include: taskInclude,
-  });
 }
 
 export async function getTasksInRange(start: Date, end: Date, filters?: TaskFilters) {

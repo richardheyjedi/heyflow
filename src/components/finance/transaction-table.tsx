@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -15,6 +14,16 @@ import {
   MoreHorizontal,
   Repeat,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,13 +40,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/taskflow/empty-state";
 import { CategoryBadge } from "@/components/finance/category-badge";
-import {
-  deleteFinanceTransaction,
-  duplicateFinanceTransaction,
-  revertFinanceTransactionsStatus,
-  updateFinanceTransactionCategory,
-  updateFinanceTransactionStatus,
-} from "@/lib/finance/actions";
+import type { TransactionMutations } from "@/components/finance/use-transaction-mutations";
 import { formatCurrencyBRL, getClientName, isTransactionOverdue } from "@/lib/finance/calculations";
 import { cn } from "@/lib/utils";
 import type { Category, Client, Transaction, TransactionStatus } from "@/lib/finance/types";
@@ -71,6 +74,7 @@ export function TransactionTable({
   categories,
   referenceDate,
   selectedIds,
+  mutations,
   onToggleRow,
   onToggleAll,
   onEdit,
@@ -82,14 +86,16 @@ export function TransactionTable({
   /** Dia de referência vindo do servidor — mantém SSR e cliente idênticos (badge "Atrasado"). */
   referenceDate: Date;
   selectedIds: Set<string>;
+  /** Handlers otimistas do container (useTransactionMutations) — a UI reflete a mudança na hora. */
+  mutations: TransactionMutations;
   onToggleRow: (id: string) => void;
   onToggleAll: () => void;
   onEdit: (transaction: Transaction) => void;
   onScheduleCharge: (transaction: Transaction) => void;
 }) {
-  const [, startTransition] = useTransition();
   const [sortField, setSortField] = useState<SortField>("dueDate");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
 
   const groupByCategoryName = useMemo(() => new Map(categories.map((c) => [c.name, c.group])), [categories]);
   const categoryItems: Record<string, string> = useMemo(
@@ -112,47 +118,6 @@ export function TransactionTable({
       setSortField(field);
       setSortDirection("asc");
     }
-  }
-
-  function handleStatusChange(transaction: Transaction, status: TransactionStatus) {
-    const previousStatus = transaction.status;
-    const previousPaidAt = transaction.paidAt;
-    startTransition(async () => {
-      const followUpId = await updateFinanceTransactionStatus(transaction.id, status);
-      toast.success(`Status atualizado para "${STATUS_LABEL[status]}".`, {
-        action: {
-          label: "Desfazer",
-          onClick: () => {
-            startTransition(async () => {
-              await revertFinanceTransactionsStatus([
-                { id: transaction.id, previousStatus, previousPaidAt, followUpId },
-              ]);
-              toast.success("Alteração desfeita.");
-            });
-          },
-        },
-      });
-    });
-  }
-
-  function handleCategoryChange(id: string, category: string) {
-    startTransition(async () => {
-      await updateFinanceTransactionCategory(id, category);
-    });
-  }
-
-  function handleDuplicate(id: string) {
-    startTransition(async () => {
-      await duplicateFinanceTransaction(id);
-      toast.success("Lançamento duplicado.");
-    });
-  }
-
-  function handleDelete(id: string) {
-    startTransition(async () => {
-      await deleteFinanceTransaction(id);
-      toast.success("Lançamento excluído.");
-    });
   }
 
   if (transactions.length === 0) {
@@ -249,7 +214,7 @@ export function TransactionTable({
                   <Select
                     items={categoryItems}
                     value={transaction.category}
-                    onValueChange={(v) => v && handleCategoryChange(transaction.id, v)}
+                    onValueChange={(v) => v && mutations.changeCategory(transaction.id, v)}
                   >
                     <SelectTrigger className="h-auto w-auto gap-1 border-none bg-transparent p-0 shadow-none hover:opacity-80 focus-visible:ring-0">
                       <SelectValue>
@@ -286,7 +251,7 @@ export function TransactionTable({
                 <td className="whitespace-nowrap border-b border-border/40 px-3 py-2">
                   <Select
                     value={transaction.status}
-                    onValueChange={(v) => v && handleStatusChange(transaction, v as TransactionStatus)}
+                    onValueChange={(v) => v && mutations.changeStatus(transaction, v as TransactionStatus)}
                   >
                     <SelectTrigger
                       className={cn(
@@ -321,12 +286,17 @@ export function TransactionTable({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onEdit(transaction)}>Editar</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDuplicate(transaction.id)}>Duplicar</DropdownMenuItem>
-                      {transaction.kind === "receita" && (
+                      <DropdownMenuItem onClick={() => mutations.duplicate(transaction.id)}>Duplicar</DropdownMenuItem>
+                      {transaction.kind === "receita" && !transaction.reminderId && (
                         <DropdownMenuItem onClick={() => onScheduleCharge(transaction)}>Programar cobrança</DropdownMenuItem>
                       )}
+                      {transaction.reminderId && (
+                        <DropdownMenuItem onClick={() => mutations.cancelCharge(transaction.id)}>
+                          Cancelar cobrança
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
-                        onClick={() => handleDelete(transaction.id)}
+                        onClick={() => setDeleteTarget(transaction)}
                         className="text-priority-urgent focus:text-priority-urgent"
                       >
                         Excluir
@@ -339,6 +309,29 @@ export function TransactionTable({
           })}
         </tbody>
       </table>
+
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir &quot;{deleteTarget?.description}&quot;?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {formatCurrencyBRL(deleteTarget?.amountCents ?? 0)} — essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) mutations.remove(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+              className="bg-priority-urgent text-white hover:bg-priority-urgent/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

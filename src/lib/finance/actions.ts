@@ -181,20 +181,6 @@ async function applyMarkPaid(id: string): Promise<string | null> {
   return null;
 }
 
-export async function markFinanceTransactionPaid(id: string) {
-  const followUpId = await applyMarkPaid(id);
-  revalidateFinance();
-  return followUpId;
-}
-
-export async function markFinanceTransactionUnpaid(id: string) {
-  await prisma.financeTransaction.update({
-    where: { id },
-    data: { status: "pendente", paidAt: null },
-  });
-  revalidateFinance();
-}
-
 // ---------------------------------------------------------------------------
 // Ações em massa (planilha) — mesmas regras das ações individuais, sem
 // disparar uma revalidação por item.
@@ -224,7 +210,11 @@ export async function deleteManyFinanceTransactions(ids: string[]) {
 
 /** Usada pela edição inline (estilo planilha): muda só o status de um lançamento. */
 export async function updateFinanceTransactionStatus(id: string, status: TransactionStatus) {
-  if (status === "pago") return markFinanceTransactionPaid(id);
+  if (status === "pago") {
+    const followUpId = await applyMarkPaid(id);
+    revalidateFinance();
+    return followUpId;
+  }
 
   await prisma.financeTransaction.update({
     where: { id },
@@ -354,6 +344,18 @@ export async function scheduleFinanceReminder(transactionId: string, date: strin
     data: { transactionId, taskId: task.id, date: new Date(date), message },
   });
 
+  revalidateFinance();
+}
+
+/** Cancela a cobrança programada de um lançamento: apaga o lembrete e a Task criada para ele. */
+export async function cancelFinanceReminder(transactionId: string) {
+  const reminder = await prisma.financeReminder.findUnique({ where: { transactionId } });
+  if (!reminder) return;
+
+  await prisma.financeReminder.delete({ where: { id: reminder.id } });
+  if (reminder.taskId) {
+    await prisma.task.deleteMany({ where: { id: reminder.taskId } });
+  }
   revalidateFinance();
 }
 

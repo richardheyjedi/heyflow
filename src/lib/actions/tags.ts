@@ -17,3 +17,9 @@ export async function createTag(name: string) {
   revalidatePath("/", "layout");
   return tag;
 }
+
+/** Remove a tag de todas as tarefas (TaskTag tem onDelete: Cascade) — as tarefas em si não são afetadas. */
+export async function deleteTag(id: string) {
+  await prisma.tag.delete({ where: { id } });
+  revalidatePath("/", "layout");
+}

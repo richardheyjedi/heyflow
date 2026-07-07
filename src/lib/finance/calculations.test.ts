@@ -3,11 +3,10 @@ import assert from "node:assert/strict";
 import {
   filterTransactions,
   formatCurrencyBRL,
-  generateNextOccurrence,
+  inputValueToCents,
   getBudgetStatus,
   getClientStats,
   getDRE,
-  getExpenseBreakdownByGroup,
   getMonthSettledStatus,
   getPaymentCutoffs,
   getTotals,
@@ -44,6 +43,18 @@ function makeTransaction(overrides: Partial<Transaction>): Transaction {
 
 test("formatCurrencyBRL formata centavos em reais", () => {
   assert.equal(formatCurrencyBRL(123456), "R$ 1.234,56");
+});
+
+test("inputValueToCents entende formatos brasileiros e simples", () => {
+  assert.equal(inputValueToCents("1.234,56"), 123456);
+  assert.equal(inputValueToCents("1234,56"), 123456);
+  assert.equal(inputValueToCents("1234.56"), 123456);
+  assert.equal(inputValueToCents("1.234"), 123400); // ponto de milhar sem centavos
+  assert.equal(inputValueToCents("1.234.567"), 123456700);
+  assert.equal(inputValueToCents("12.5"), 1250); // decimal simples
+  assert.equal(inputValueToCents("R$ 500,00"), 50000);
+  assert.equal(inputValueToCents("500"), 50000);
+  assert.equal(inputValueToCents("abc"), 0);
 });
 
 test("getPaymentCutoffs soma cumulativamente por corte", () => {
@@ -118,21 +129,6 @@ test("getUpcomingDue marca atrasados e ordena por vencimento", () => {
   assert.equal(alerts[1].isOverdue, false);
 });
 
-test("generateNextOccurrence cria a próxima ocorrência mensal sem mutar a original", () => {
-  const original = makeTransaction({
-    dueDate: "2026-07-10",
-    recurrence: { frequency: "mensal", interval: 1, nextDate: "2026-08-10" },
-  });
-
-  const next = generateNextOccurrence(original, () => "tx_next");
-
-  assert.equal(next?.id, "tx_next");
-  assert.equal(next?.dueDate, "2026-08-10");
-  assert.equal(next?.status, "pendente");
-  assert.equal(next?.recurrence?.nextDate, "2026-09-10");
-  assert.equal(original.dueDate, "2026-07-10"); // original intacta
-});
-
 test("projectBalance projeta ocorrências futuras de recorrentes", () => {
   const transactions = [
     makeTransaction({
@@ -195,26 +191,6 @@ test("filterTransactions filtra por grupo de categoria", () => {
 
   const onlyCasa = filterTransactions(transactions, { ...DEFAULT_FILTERS, categoryGroup: "casa" }, REFERENCE, categories);
   assert.deepEqual(onlyCasa.map((t) => t.id), ["a"]);
-});
-
-test("getExpenseBreakdownByGroup soma despesas do mês por grupo de categoria", () => {
-  const categories: Category[] = [
-    { id: "cat1", name: "Contas de Casa", group: "casa" },
-    { id: "cat2", name: "Mercado", group: "casa" },
-    { id: "cat3", name: "Serviços Prestados", group: "negocio" },
-  ];
-  const transactions = [
-    makeTransaction({ id: "a", dueDate: "2026-07-05", category: "Contas de Casa", amountCents: 20000 }),
-    makeTransaction({ id: "b", dueDate: "2026-07-06", category: "Mercado", amountCents: 15000 }),
-    makeTransaction({ id: "c", dueDate: "2026-07-07", category: "Serviços Prestados", amountCents: 50000 }),
-    makeTransaction({ id: "d", dueDate: "2026-08-01", category: "Mercado", amountCents: 99999 }), // fora do mês
-  ];
-
-  const breakdown = getExpenseBreakdownByGroup(transactions, categories, REFERENCE);
-  assert.deepEqual(breakdown, [
-    { group: "casa", totalCents: 35000 },
-    { group: "negocio", totalCents: 50000 },
-  ]);
 });
 
 test("isTransactionOverdue considera vencido e não pago, ignora o dia atual", () => {

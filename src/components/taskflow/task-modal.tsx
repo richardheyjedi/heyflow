@@ -25,7 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/store/ui-store";
 import { createTask, deleteTask, updateTask, type TaskFormInput } from "@/lib/actions/tasks";
-import { createTag } from "@/lib/actions/tags";
+import { createTag, deleteTag } from "@/lib/actions/tags";
 import { ProjectDot } from "@/components/taskflow/project-badge";
 import {
   PRIORITY_LABEL,
@@ -75,6 +75,7 @@ export function TaskModal({ projects, initialTags }: Props) {
           projects={projects}
           tags={tags}
           onTagCreated={(tag) => setTags((prev) => (prev.some((t) => t.id === tag.id) ? prev : [...prev, tag]))}
+          onTagDeleted={(tagId) => setTags((prev) => prev.filter((t) => t.id !== tagId))}
           onClose={closeTaskModal}
         />
       </DialogContent>
@@ -89,6 +90,7 @@ function TaskModalForm({
   projects,
   tags,
   onTagCreated,
+  onTagDeleted,
   onClose,
 }: {
   editingTask: TaskWithRelations | null;
@@ -97,6 +99,7 @@ function TaskModalForm({
   projects: Pick<Project, "id" | "name" | "color" | "icon">[];
   tags: Tag[];
   onTagCreated: (tag: Tag) => void;
+  onTagDeleted: (tagId: string) => void;
   onClose: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -152,6 +155,18 @@ function TaskModalForm({
       toast.error("Não foi possível criar a tag.");
     } finally {
       setIsCreatingTag(false);
+    }
+  }
+
+  async function handleDeleteTag(id: string) {
+    // Otimista: some da lista na hora; a Server Action remove do banco.
+    onTagDeleted(id);
+    setTagIds((prev) => prev.filter((t) => t !== id));
+    try {
+      await deleteTag(id);
+      toast.success("Tag excluída.");
+    } catch {
+      toast.error("Não foi possível excluir a tag.");
     }
   }
 
@@ -323,19 +338,28 @@ function TaskModalForm({
             {tags.map((tag) => {
               const active = tagIds.includes(tag.id);
               return (
-                <button
+                <span
                   key={tag.id}
-                  type="button"
-                  onClick={() => toggleTag(tag.id)}
-                  className="rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all duration-150"
+                  className="group/tag inline-flex items-center rounded-full border text-[11px] font-medium transition-all duration-150"
                   style={{
                     backgroundColor: active ? `${tag.color}26` : "transparent",
                     borderColor: active ? `${tag.color}55` : "var(--border)",
                     color: active ? tag.color : "var(--muted-foreground)",
                   }}
                 >
-                  {tag.name}
-                </button>
+                  <button type="button" onClick={() => toggleTag(tag.id)} className="py-1 pl-2.5 pr-1">
+                    {tag.name}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Excluir tag ${tag.name}`}
+                    title="Excluir tag (remove de todas as tarefas)"
+                    onClick={() => handleDeleteTag(tag.id)}
+                    className="mr-1.5 rounded-full p-0.5 opacity-0 transition-opacity hover:bg-priority-urgent/20 hover:text-priority-urgent group-hover/tag:opacity-60 group-hover/tag:hover:opacity-100"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
               );
             })}
           </div>

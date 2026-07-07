@@ -125,18 +125,6 @@ export async function toggleTaskDone(id: string) {
   revalidateAll();
 }
 
-export async function toggleSubtask(subtaskId: string) {
-  const subtask = await prisma.subtask.findUnique({ where: { id: subtaskId } });
-  if (!subtask) return;
-
-  await prisma.subtask.update({
-    where: { id: subtaskId },
-    data: { done: !subtask.done },
-  });
-
-  revalidateAll();
-}
-
 export async function updateTaskStatus(id: string, status: TaskStatus) {
   await prisma.task.update({
     where: { id },

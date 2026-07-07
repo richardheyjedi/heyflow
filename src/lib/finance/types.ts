@@ -7,8 +7,6 @@
 // colunas simples no banco (recurrenceFrequency/Interval/NextDate) e remontada
 // aqui como o objeto aninhado `RecurrenceRule`. Leituras ficam em
 // src/lib/finance/data.ts, mutações em src/lib/finance/actions.ts.
-// `Reminder.taskId` referencia o id real de uma Task do TaskFlow, criada via a
-// Server Action `createTask` existente (ver `scheduleFinanceReminder`).
 
 export type TransactionKind = "receita" | "despesa";
 
@@ -59,20 +57,6 @@ export type Budget = {
   id: string;
   group: CategoryGroup;
   limitCents: number;
-};
-
-/**
- * Lembrete de cobrança vinculado a um lançamento. Quando `taskId` está
- * preenchido, existe uma Task real criada no TaskFlow (via Server Action
- * `createTask`) para esse lembrete.
- */
-export type Reminder = {
-  id: string;
-  transactionId: string;
-  taskId: string | null;
-  date: string; // ISO yyyy-MM-dd
-  message: string;
-  createdAt: string;
 };
 
 export type Transaction = {

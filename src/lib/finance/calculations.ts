@@ -40,7 +40,15 @@ export function centsToInputValue(cents: number): string {
 }
 
 export function inputValueToCents(value: string): number {
-  const normalized = value.replace(",", ".");
+  // Aceita formatos brasileiros ("1.234,56") e simples ("1234.56"): quando há
+  // vírgula, os pontos são separadores de milhar; sem vírgula, um único ponto
+  // é decimal, e "1.234" (padrão de milhar) também precisa valer 1234 reais.
+  const trimmed = value.trim().replace(/[R$\s]/g, "");
+  const normalized = trimmed.includes(",")
+    ? trimmed.replace(/\./g, "").replace(",", ".")
+    : /^\d{1,3}(\.\d{3})+$/.test(trimmed)
+      ? trimmed.replace(/\./g, "")
+      : trimmed;
   const reais = Number.parseFloat(normalized);
   return Number.isFinite(reais) ? Math.round(reais * 100) : 0;
 }
@@ -87,7 +95,7 @@ export function filterTransactions(
   });
 }
 
-export function getPeriodRange(
+function getPeriodRange(
   filters: TransactionFilters,
   referenceDate: Date = new Date()
 ): { start: Date; end: Date } {
@@ -273,31 +281,6 @@ export function computeNextRecurrenceDate(from: Date, rule: Pick<RecurrenceRule,
   }
 }
 
-/**
- * Gera a próxima ocorrência de uma transação recorrente (não muta a original).
- * Deve ser chamada quando a ocorrência atual é marcada como paga.
- */
-export function generateNextOccurrence(transaction: Transaction, genId: () => string): Transaction | null {
-  if (!transaction.recurrence) return null;
-
-  const nextDueDate = transaction.recurrence.nextDate;
-  const followingDate = computeNextRecurrenceDate(parseISO(nextDueDate), transaction.recurrence);
-  const now = new Date().toISOString();
-
-  return {
-    ...transaction,
-    id: genId(),
-    dueDate: nextDueDate,
-    paidAt: null,
-    status: "pendente",
-    reminderId: null,
-    originTransactionId: transaction.originTransactionId ?? transaction.id,
-    recurrence: { ...transaction.recurrence, nextDate: format(followingDate, "yyyy-MM-dd") },
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Projeção de saldo (próximos N meses)
 //
@@ -414,20 +397,6 @@ function sumExpensesByGroupInMonth(
     totals.set(group, (totals.get(group) ?? 0) + t.amountCents);
   }
   return totals;
-}
-
-export type GroupBreakdown = { group: CategoryGroup; totalCents: number };
-
-export function getExpenseBreakdownByGroup(
-  transactions: Transaction[],
-  categories: Category[],
-  referenceDate: Date = new Date()
-): GroupBreakdown[] {
-  const totals = sumExpensesByGroupInMonth(transactions, categories, referenceDate);
-
-  return GROUP_ORDER
-    .map((group) => ({ group, totalCents: totals.get(group) ?? 0 }))
-    .filter((entry) => entry.totalCents > 0);
 }
 
 // ---------------------------------------------------------------------------

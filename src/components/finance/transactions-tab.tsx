@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useMemo, useState } from "react";
 import { Plus, Tags } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransactionFiltersBar } from "@/components/finance/transaction-filters-bar";
@@ -11,12 +10,7 @@ import { ScheduleChargeDialog } from "@/components/finance/schedule-charge-dialo
 import { CategoryManagerDialog } from "@/components/finance/category-manager-dialog";
 import { ExportCsvButton } from "@/components/finance/export-csv-button";
 import { BulkActionsBar } from "@/components/finance/bulk-actions-bar";
-import {
-  deleteManyFinanceTransactions,
-  markManyFinanceTransactionsPaid,
-  markManyFinanceTransactionsUnpaid,
-  revertFinanceTransactionsStatus,
-} from "@/lib/finance/actions";
+import { useTransactionMutations } from "@/components/finance/use-transaction-mutations";
 import { parseISO } from "date-fns";
 import { filterTransactions, formatCurrencyBRL, isTransactionOverdue } from "@/lib/finance/calculations";
 import { DEFAULT_FILTERS, type Category, type Client, type Transaction } from "@/lib/finance/types";
@@ -37,24 +31,25 @@ export function TransactionsTab({
   todayISO: string;
 }) {
   const referenceDate = useMemo(() => parseISO(todayISO), [todayISO]);
+  const mutations = useTransactionMutations(transactions);
+  const optimisticTransactions = mutations.transactions;
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [chargeTarget, setChargeTarget] = useState<Transaction | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isBulkPending, startBulkTransition] = useTransition();
 
   const filtered = useMemo(
-    () => filterTransactions(transactions, filters, referenceDate, categories),
-    [transactions, filters, referenceDate, categories]
+    () => filterTransactions(optimisticTransactions, filters, referenceDate, categories),
+    [optimisticTransactions, filters, referenceDate, categories]
   );
 
   // O chip "Atrasado" precisa ignorar o período (mesma lógica do filtro
   // "atrasado") — senão uma conta vencida em outro mês nunca apareceria aqui,
   // que era exatamente o problema original.
   const overdueTransactions = useMemo(
-    () => filterTransactions(transactions, { ...filters, status: "atrasado" }, referenceDate, categories),
-    [transactions, filters, referenceDate, categories]
+    () => filterTransactions(optimisticTransactions, { ...filters, status: "atrasado" }, referenceDate, categories),
+    [optimisticTransactions, filters, referenceDate, categories]
   );
 
   const summary = useMemo(() => {
@@ -103,63 +98,11 @@ export function TransactionsTab({
     setSelectedIds(visibleSelectedIds.size === filtered.length ? new Set() : new Set(filtered.map((t) => t.id)));
   }
 
-  function handleBulkMarkPaid() {
-    const ids = Array.from(visibleSelectedIds);
-    const previous = filtered.filter((t) => visibleSelectedIds.has(t.id));
-    startBulkTransition(async () => {
-      const followUps = await markManyFinanceTransactionsPaid(ids);
-      toast.success(`${ids.length} lançamento(s) marcado(s) como pago.`, {
-        action: {
-          label: "Desfazer",
-          onClick: () => {
-            startBulkTransition(async () => {
-              await revertFinanceTransactionsStatus(
-                previous.map((t) => ({
-                  id: t.id,
-                  previousStatus: t.status,
-                  previousPaidAt: t.paidAt,
-                  followUpId: followUps[t.id] ?? null,
-                }))
-              );
-              toast.success("Alteração desfeita.");
-            });
-          },
-        },
-      });
-      setSelectedIds(new Set());
-    });
-  }
-
-  function handleBulkMarkUnpaid() {
-    const ids = Array.from(visibleSelectedIds);
-    const previous = filtered.filter((t) => visibleSelectedIds.has(t.id));
-    startBulkTransition(async () => {
-      await markManyFinanceTransactionsUnpaid(ids);
-      toast.success(`${ids.length} lançamento(s) marcado(s) como não pago.`, {
-        action: {
-          label: "Desfazer",
-          onClick: () => {
-            startBulkTransition(async () => {
-              await revertFinanceTransactionsStatus(
-                previous.map((t) => ({ id: t.id, previousStatus: t.status, previousPaidAt: t.paidAt, followUpId: null }))
-              );
-              toast.success("Alteração desfeita.");
-            });
-          },
-        },
-      });
-      setSelectedIds(new Set());
-    });
-  }
-
-  function handleBulkDelete() {
-    const ids = Array.from(visibleSelectedIds);
-    startBulkTransition(async () => {
-      await deleteManyFinanceTransactions(ids);
-      toast.success(`${ids.length} lançamento(s) excluído(s).`);
-      setSelectedIds(new Set());
-    });
-  }
+  const selectedTransactions = useMemo(
+    () => filtered.filter((t) => visibleSelectedIds.has(t.id)),
+    [filtered, visibleSelectedIds]
+  );
+  const clearSelection = () => setSelectedIds(new Set());
 
   return (
     <div className="flex flex-col gap-4">
@@ -198,11 +141,11 @@ export function TransactionsTab({
 
       <BulkActionsBar
         count={visibleSelectedIds.size}
-        isPending={isBulkPending}
-        onMarkPaid={handleBulkMarkPaid}
-        onMarkUnpaid={handleBulkMarkUnpaid}
-        onDelete={handleBulkDelete}
-        onClear={() => setSelectedIds(new Set())}
+        isPending={mutations.isPending}
+        onMarkPaid={() => mutations.markManyPaid(selectedTransactions, clearSelection)}
+        onMarkUnpaid={() => mutations.markManyUnpaid(selectedTransactions, clearSelection)}
+        onDelete={() => mutations.removeMany(Array.from(visibleSelectedIds), clearSelection)}
+        onClear={clearSelection}
       />
 
       <TransactionTable
@@ -211,6 +154,7 @@ export function TransactionsTab({
         categories={categories}
         referenceDate={referenceDate}
         selectedIds={visibleSelectedIds}
+        mutations={mutations}
         onToggleRow={toggleRow}
         onToggleAll={toggleAll}
         onEdit={openEdit}

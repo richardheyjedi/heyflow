@@ -200,6 +200,12 @@ function TransactionForm({
             ),
           };
 
+    // Coerência status ↔ data de pagamento: preencher a data marca como pago;
+    // status "pago" sem data assume hoje — evita estados contraditórios.
+    const effectiveStatus = paidAt ? "pago" : status;
+    const effectivePaidAt =
+      effectiveStatus === "pago" ? paidAt || format(new Date(), "yyyy-MM-dd") : null;
+
     startTransition(async () => {
       const payload = {
         kind,
@@ -209,8 +215,8 @@ function TransactionForm({
         category,
         clientId: clientId === "none" ? null : clientId,
         dueDate,
-        paidAt: paidAt || null,
-        status,
+        paidAt: effectivePaidAt,
+        status: effectiveStatus,
         recurrence,
         installmentsRemaining:
           kind === "despesa" && recurrence === null && installmentsRemaining.trim()

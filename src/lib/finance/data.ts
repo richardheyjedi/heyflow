@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import { toDomainBudget, toDomainCategory, toDomainClient, toDomainTransaction } from "@/lib/finance/mappers";
 
-export const financeTransactionInclude = {
+const financeTransactionInclude = {
   reminder: true,
 } satisfies Prisma.FinanceTransactionInclude;
 

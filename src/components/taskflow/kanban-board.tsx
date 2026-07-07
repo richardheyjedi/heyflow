@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   DndContext,
   PointerSensor,
@@ -23,7 +22,6 @@ export function KanbanBoard({ tasks }: { tasks: TaskWithRelations[] }) {
   const [items, setItems] = useState(tasks);
   const [prevTasks, setPrevTasks] = useState(tasks);
   const [, startTransition] = useTransition();
-  const router = useRouter();
 
   if (tasks !== prevTasks) {
     setPrevTasks(tasks);
@@ -43,9 +41,10 @@ export function KanbanBoard({ tasks }: { tasks: TaskWithRelations[] }) {
 
     setItems((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: targetStatus } : t)));
 
+    // A Server Action já revalida as rotas — sem router.refresh() extra
+    // (que refazia a página inteira uma segunda vez a cada arrasto).
     startTransition(async () => {
       await updateTaskStatus(taskId, targetStatus);
-      router.refresh();
     });
   }
 

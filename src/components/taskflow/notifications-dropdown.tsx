@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Bell, CheckCheck, Clock, AlertTriangle, CheckCircle2, PiggyBank, CalendarClock } from "lucide-react";
+import { Bell, CheckCheck, Clock, AlertTriangle, CheckCircle2, PiggyBank, CalendarClock, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { markAllNotificationsRead, markNotificationRead } from "@/lib/actions/notifications";
+import { clearAllNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/actions/notifications";
 import type { NotificationWithTask } from "@/lib/types";
 
 const TYPE_ICON = {
@@ -60,6 +60,13 @@ export function NotificationsDropdown({ notifications }: { notifications: Notifi
     });
   }
 
+  function handleClearAll() {
+    setItems([]);
+    startTransition(() => {
+      clearAllNotifications();
+    });
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -75,17 +82,28 @@ export function NotificationsDropdown({ notifications }: { notifications: Notifi
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+        <div className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-3">
           <p className="text-sm font-semibold text-foreground">Notificações</p>
-          {unreadCount > 0 && (
-            <button
-              onClick={handleMarkAllRead}
-              className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
-            >
-              <CheckCheck className="size-3.5" />
-              Marcar todas como lidas
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllRead}
+                className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+              >
+                <CheckCheck className="size-3.5" />
+                Marcar lidas
+              </button>
+            )}
+            {items.length > 0 && (
+              <button
+                onClick={handleClearAll}
+                className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-priority-urgent hover:underline"
+              >
+                <Trash2 className="size-3.5" />
+                Limpar
+              </button>
+            )}
+          </div>
         </div>
         <div className="max-h-80 overflow-y-auto">
           {items.length === 0 ? (

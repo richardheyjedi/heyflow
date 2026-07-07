@@ -13,7 +13,7 @@ function getSecretKey() {
   return new TextEncoder().encode(secret);
 }
 
-export async function encryptSession(expiresAt: Date) {
+async function encryptSession(expiresAt: Date) {
   return new SignJWT({ authenticated: true })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -47,13 +47,6 @@ export async function createSession() {
 export async function deleteSession() {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
-}
-
-export async function isAuthenticated() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const session = await decryptSession(token);
-  return session !== null;
 }
 
 export const SESSION_COOKIE_NAME = COOKIE_NAME;

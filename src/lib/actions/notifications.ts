@@ -12,3 +12,8 @@ export async function markAllNotificationsRead() {
   await prisma.notification.updateMany({ where: { read: false }, data: { read: true } });
   revalidatePath("/", "layout");
 }
+
+export async function clearAllNotifications() {
+  await prisma.notification.deleteMany();
+  revalidatePath("/", "layout");
+}
