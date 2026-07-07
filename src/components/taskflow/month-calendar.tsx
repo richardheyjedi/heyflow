@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { format, isSameMonth, isToday } from "date-fns";
+import { format, isSameMonth, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,19 +26,24 @@ const PRIORITY_DOT_CLASS: Record<string, string> = {
 
 const WEEKDAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
+// Recebe os dias como strings ISO (yyyy-MM-dd) em vez de Date: objetos Date
+// atravessando a fronteira servidor→cliente carregam o fuso do servidor, e
+// re-formatá-los no fuso do usuário desloca o calendário um dia para trás.
+// parseISO de uma data "pura" produz meia-noite LOCAL dos dois lados.
 export function MonthCalendar({
   weeks,
   currentMonth,
   tasksByDate,
 }: {
-  weeks: Date[][];
-  currentMonth: Date;
+  weeks: string[][];
+  currentMonth: string;
   tasksByDate: Record<string, TaskWithRelations[]>;
 }) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const openCreateTaskModal = useUiStore((s) => s.openCreateTaskModal);
 
   const selectedTasks = selectedDate ? tasksByDate[selectedDate] ?? [] : [];
+  const currentMonthDate = parseISO(currentMonth);
 
   return (
     <>
@@ -51,10 +56,10 @@ export function MonthCalendar({
           ))}
         </div>
         <div className="grid grid-cols-7">
-          {weeks.flat().map((day) => {
-            const dateISO = format(day, "yyyy-MM-dd");
+          {weeks.flat().map((dateISO) => {
+            const day = parseISO(dateISO);
             const dayTasks = tasksByDate[dateISO] ?? [];
-            const isCurrentMonth = isSameMonth(day, currentMonth);
+            const isCurrentMonth = isSameMonth(day, currentMonthDate);
             const visible = dayTasks.slice(0, 3);
             const remaining = dayTasks.length - visible.length;
 
@@ -98,7 +103,9 @@ export function MonthCalendar({
         <SheetContent side="right" className="flex flex-col gap-0 p-0">
           <SheetHeader className="border-b border-border/60">
             <SheetTitle className="capitalize">
-              {selectedDate ? format(new Date(selectedDate), "EEEE, d 'de' MMMM", { locale: ptBR }) : ""}
+              {/* parseISO, não new Date(): "yyyy-MM-dd" em new Date() é meia-noite
+                  UTC e formata como o dia ANTERIOR em fusos negativos. */}
+              {selectedDate ? format(parseISO(selectedDate), "EEEE, d 'de' MMMM", { locale: ptBR }) : ""}
             </SheetTitle>
           </SheetHeader>
           <div className="flex-1 space-y-2 overflow-y-auto p-4">

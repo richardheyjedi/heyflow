@@ -16,10 +16,12 @@ export function LancamentosSection({
   transactions,
   clients,
   categories,
+  todayISO,
 }: {
   transactions: Transaction[];
   clients: Client[];
   categories: Category[];
+  todayISO: string;
 }) {
   const mainTransactions = useMemo(() => transactions.filter((t) => !t.isGoon), [transactions]);
   const goonTransactions = useMemo(() => transactions.filter((t) => t.isGoon), [transactions]);
@@ -32,10 +34,10 @@ export function LancamentosSection({
         <TabsTrigger value="goon">GOON</TabsTrigger>
       </TabsList>
       <TabsContent value="recebimentos" className="mt-4">
-        <TransactionKindTab kind="receita" transactions={mainTransactions} clients={clients} categories={categories} />
+        <TransactionKindTab kind="receita" transactions={mainTransactions} clients={clients} categories={categories} todayISO={todayISO} />
       </TabsContent>
       <TabsContent value="despesas" className="mt-4">
-        <TransactionKindTab kind="despesa" transactions={mainTransactions} clients={clients} categories={categories} />
+        <TransactionKindTab kind="despesa" transactions={mainTransactions} clients={clients} categories={categories} todayISO={todayISO} />
       </TabsContent>
       <TabsContent value="goon" className="mt-4">
         <TransactionsTab
@@ -43,6 +45,7 @@ export function LancamentosSection({
           clients={clients}
           categories={categories}
           defaults={{ isGoon: true }}
+          todayISO={todayISO}
         />
       </TabsContent>
     </Tabs>

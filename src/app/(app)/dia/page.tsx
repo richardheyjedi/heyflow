@@ -1,4 +1,4 @@
-import { format, startOfDay, endOfDay } from "date-fns";
+import { format, startOfDay, endOfDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ViewNav } from "@/components/taskflow/view-nav";
 import { TaskFilterBar } from "@/components/taskflow/task-filter-bar";
@@ -12,7 +12,8 @@ type SearchParams = Promise<{ date?: string; projectId?: string; priority?: stri
 
 export default async function DayPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const date = params.date ? new Date(params.date) : new Date();
+  // parseISO: new Date("yyyy-MM-dd") é meia-noite UTC e desloca o dia em servidores fora do UTC.
+  const date = params.date ? parseISO(params.date) : new Date();
 
   const [tasks, projects, tags] = await Promise.all([
     getTasksInRange(startOfDay(date), endOfDay(date), {

@@ -1,4 +1,5 @@
-import { startOfWeek, endOfWeek, eachDayOfInterval, format, isToday, getWeek } from "date-fns";
+import { startOfWeek, endOfWeek, eachDayOfInterval, format, isToday, getWeek, parseISO } from "date-fns";
+import { dateOnlyKey } from "@/lib/dates";
 import { ptBR } from "date-fns/locale";
 import { ViewNav } from "@/components/taskflow/view-nav";
 import { TaskFilterBar } from "@/components/taskflow/task-filter-bar";
@@ -12,7 +13,8 @@ type SearchParams = Promise<{ date?: string; projectId?: string; priority?: stri
 
 export default async function WeekPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const referenceDate = params.date ? new Date(params.date) : new Date();
+  // parseISO: new Date("yyyy-MM-dd") é meia-noite UTC e desloca o dia em servidores fora do UTC.
+  const referenceDate = params.date ? parseISO(params.date) : new Date();
   const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(referenceDate, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
@@ -34,7 +36,7 @@ export default async function WeekPage({ searchParams }: { searchParams: SearchP
       dayLabel: format(day, "EEEEEE", { locale: ptBR }),
       dayNumber: format(day, "d MMM", { locale: ptBR }),
       isToday: isToday(day),
-      tasks: tasks.filter((t) => t.dueDate && format(new Date(t.dueDate), "yyyy-MM-dd") === dateISO),
+      tasks: tasks.filter((t) => t.dueDate && dateOnlyKey(t.dueDate) === dateISO),
     };
   });
 

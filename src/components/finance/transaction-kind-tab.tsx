@@ -16,6 +16,7 @@ import {
   markManyFinanceTransactionsPaid,
   markManyFinanceTransactionsUnpaid,
 } from "@/lib/finance/actions";
+import { parseISO } from "date-fns";
 import {
   filterTransactions,
   formatCurrencyBRL,
@@ -61,13 +62,17 @@ export function TransactionKindTab({
   transactions,
   clients,
   categories,
+  todayISO,
 }: {
   kind: TransactionKind;
   transactions: Transaction[];
   clients: Client[];
   categories: Category[];
+  /** Dia de referência vindo do servidor — mantém SSR e cliente idênticos. */
+  todayISO: string;
 }) {
   const copy = KIND_COPY[kind];
+  const referenceDate = useMemo(() => parseISO(todayISO), [todayISO]);
   const scoped = useMemo(() => transactions.filter((t) => t.kind === kind), [transactions, kind]);
 
   // DEFAULT_FILTERS usa período "Mês atual" — um período fixo pra frente (ex.:
@@ -82,18 +87,18 @@ export function TransactionKindTab({
   const [isBulkPending, startBulkTransition] = useTransition();
 
   const filtered = useMemo(
-    () => filterTransactions(scoped, filters, new Date(), categories),
-    [scoped, filters, categories]
+    () => filterTransactions(scoped, filters, referenceDate, categories),
+    [scoped, filters, referenceDate, categories]
   );
 
   const totals = useMemo(() => getTotals(scoped), [scoped]);
   const firstKpiCents = kind === "receita" ? totals.totalReceivedCents : totals.totalPaidCents;
   const secondKpiCents = kind === "receita" ? totals.totalReceivableCents : totals.totalPayableCents;
   const overdueCents = useMemo(
-    () => scoped.filter((t) => isTransactionOverdue(t)).reduce((s, t) => s + t.amountCents, 0),
-    [scoped]
+    () => scoped.filter((t) => isTransactionOverdue(t, referenceDate)).reduce((s, t) => s + t.amountCents, 0),
+    [scoped, referenceDate]
   );
-  const cashFlowSeries = useMemo(() => getCashFlowSeries(scoped, 5), [scoped]);
+  const cashFlowSeries = useMemo(() => getCashFlowSeries(scoped, 5, referenceDate), [scoped, referenceDate]);
 
   const visibleSelectedIds = useMemo(() => {
     const filteredIds = new Set(filtered.map((t) => t.id));
@@ -193,6 +198,7 @@ export function TransactionKindTab({
           transactions={filtered}
           clients={clients}
           categories={categories}
+          referenceDate={referenceDate}
           selectedIds={visibleSelectedIds}
           onToggleRow={toggleRow}
           onToggleAll={toggleAll}

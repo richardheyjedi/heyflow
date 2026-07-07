@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, CalendarIcon } from "lucide-react";
-import { addDays, addMonths, addWeeks, format } from "date-fns";
+import { addDays, addMonths, addWeeks, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -32,7 +32,10 @@ export function ViewNav({
 }) {
   const router = useRouter();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const date = new Date(currentDate);
+  // parseISO, não new Date(): "yyyy-MM-dd" em new Date() vira meia-noite UTC,
+  // e em fusos negativos addDays(+1) formatava de volta para o MESMO dia —
+  // as setas de navegação ficavam travadas.
+  const date = parseISO(currentDate);
 
   function go(target: Date) {
     router.push(`${basePath}?date=${format(target, "yyyy-MM-dd")}`);

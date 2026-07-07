@@ -23,8 +23,17 @@ import type { Client, OwnerScope, Transaction } from "@/lib/finance/types";
 const CLIENT_COLOR_OPTIONS = ["#8B5CF6", "#A855F7", "#C084FC", "#7C3AED", "#6D28D9", "#FB7185", "#60A5FA", "#F59E0B"];
 const KIND_ITEMS: Record<OwnerScope, string> = { PF: "PF", PJ: "PJ" };
 
-export function ClientsTab({ transactions, clients }: { transactions: Transaction[]; clients: Client[] }) {
-  const stats = getClientStats(transactions, clients);
+export function ClientsTab({
+  transactions,
+  clients,
+  todayISO,
+}: {
+  transactions: Transaction[];
+  clients: Client[];
+  /** Dia de referência vindo do servidor — mantém SSR e cliente idênticos. */
+  todayISO: string;
+}) {
+  const stats = getClientStats(transactions, clients, parseISO(todayISO));
 
   return (
     <div className="flex flex-col gap-4">

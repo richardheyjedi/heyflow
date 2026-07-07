@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { parseISO } from "date-fns";
 import { Wallet, ArrowDownCircle, ArrowUpCircle, TrendingUp, PiggyBank } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -31,13 +32,16 @@ export function FinanceOverview({
   clients,
   categories,
   budgets,
+  todayISO,
 }: {
   transactions: Transaction[];
   clients: Client[];
   categories: Category[];
   budgets: Budget[];
+  /** Dia de referência vindo do servidor — mantém SSR e cliente idênticos. */
+  todayISO: string;
 }) {
-  const now = useMemo(() => new Date(), []);
+  const now = useMemo(() => parseISO(todayISO), [todayISO]);
   const totals = useMemo(() => getTotals(transactions), [transactions]);
   const cutoffs = useMemo(() => getPaymentCutoffs(transactions, now), [transactions, now]);
   const monthSettled = useMemo(() => getMonthSettledStatus(transactions, now), [transactions, now]);

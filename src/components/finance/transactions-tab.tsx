@@ -16,6 +16,7 @@ import {
   markManyFinanceTransactionsPaid,
   markManyFinanceTransactionsUnpaid,
 } from "@/lib/finance/actions";
+import { parseISO } from "date-fns";
 import { filterTransactions, formatCurrencyBRL, isTransactionOverdue } from "@/lib/finance/calculations";
 import { DEFAULT_FILTERS, type Category, type Client, type Transaction } from "@/lib/finance/types";
 import { cn } from "@/lib/utils";
@@ -25,12 +26,16 @@ export function TransactionsTab({
   clients,
   categories,
   defaults,
+  todayISO,
 }: {
   transactions: Transaction[];
   clients: Client[];
   categories: Category[];
   defaults?: TransactionDefaults;
+  /** Dia de referência vindo do servidor — mantém SSR e cliente idênticos. */
+  todayISO: string;
 }) {
+  const referenceDate = useMemo(() => parseISO(todayISO), [todayISO]);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -39,21 +44,21 @@ export function TransactionsTab({
   const [isBulkPending, startBulkTransition] = useTransition();
 
   const filtered = useMemo(
-    () => filterTransactions(transactions, filters, new Date(), categories),
-    [transactions, filters, categories]
+    () => filterTransactions(transactions, filters, referenceDate, categories),
+    [transactions, filters, referenceDate, categories]
   );
 
   // O chip "Atrasado" precisa ignorar o período (mesma lógica do filtro
   // "atrasado") — senão uma conta vencida em outro mês nunca apareceria aqui,
   // que era exatamente o problema original.
   const overdueTransactions = useMemo(
-    () => filterTransactions(transactions, { ...filters, status: "atrasado" }, new Date(), categories),
-    [transactions, filters, categories]
+    () => filterTransactions(transactions, { ...filters, status: "atrasado" }, referenceDate, categories),
+    [transactions, filters, referenceDate, categories]
   );
 
   const summary = useMemo(() => {
     const paid = filtered.filter((t) => t.status === "pago");
-    const open = filtered.filter((t) => t.status !== "pago" && !isTransactionOverdue(t));
+    const open = filtered.filter((t) => t.status !== "pago" && !isTransactionOverdue(t, referenceDate));
     const sum = (items: Transaction[]) => items.reduce((s, t) => s + t.amountCents, 0);
     return {
       count: filtered.length,
@@ -65,7 +70,7 @@ export function TransactionsTab({
       overdueCount: overdueTransactions.length,
       overdueCents: sum(overdueTransactions),
     };
-  }, [filtered, overdueTransactions]);
+  }, [filtered, overdueTransactions, referenceDate]);
 
   // Só considera selecionados os lançamentos que ainda estão visíveis com os
   // filtros atuais (evita agir sobre linhas escondidas por um filtro novo).
@@ -172,6 +177,7 @@ export function TransactionsTab({
         transactions={filtered}
         clients={clients}
         categories={categories}
+        referenceDate={referenceDate}
         selectedIds={visibleSelectedIds}
         onToggleRow={toggleRow}
         onToggleAll={toggleAll}

@@ -5,6 +5,7 @@ import { Check, ListChecks, Repeat, Clock } from "lucide-react";
 import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { dateOnlyToLocal } from "@/lib/dates";
 import { toggleTaskDone } from "@/lib/actions/tasks";
 import { PriorityBadge } from "@/components/taskflow/priority-badge";
 import { ProjectBadge } from "@/components/taskflow/project-badge";
@@ -24,8 +25,11 @@ export function TaskCard({
   const openEditTaskModal = useUiStore((s) => s.openEditTaskModal);
 
   const isDone = task.status === "done";
+  // dateOnlyToLocal: dueDate é meia-noite UTC — comparar/formatar direto no
+  // fuso local marcava a tarefa como atrasada no próprio dia do vencimento e
+  // exibia o dia anterior para quem está a oeste do UTC.
   const isOverdue =
-    !isDone && task.dueDate && isBefore(new Date(task.dueDate), startOfDay(new Date()));
+    !isDone && task.dueDate && isBefore(dateOnlyToLocal(task.dueDate), startOfDay(new Date()));
 
   const doneSubtasks = task.subtasks.filter((s) => s.done).length;
 
@@ -86,7 +90,7 @@ export function TaskCard({
             {task.dueDate && (
               <span className={cn("inline-flex items-center gap-1", isOverdue && "font-medium text-priority-urgent")}>
                 <Clock className="size-3" />
-                {format(new Date(task.dueDate), "dd MMM", { locale: ptBR })}
+                {format(dateOnlyToLocal(task.dueDate), "dd MMM", { locale: ptBR })}
                 {task.dueTime ? ` · ${task.dueTime}` : ""}
               </span>
             )}

@@ -67,6 +67,7 @@ export function TransactionTable({
   transactions,
   clients,
   categories,
+  referenceDate,
   selectedIds,
   onToggleRow,
   onToggleAll,
@@ -76,6 +77,8 @@ export function TransactionTable({
   transactions: Transaction[];
   clients: Client[];
   categories: Category[];
+  /** Dia de referência vindo do servidor — mantém SSR e cliente idênticos (badge "Atrasado"). */
+  referenceDate: Date;
   selectedIds: Set<string>;
   onToggleRow: (id: string) => void;
   onToggleAll: () => void;
@@ -184,7 +187,7 @@ export function TransactionTable({
           {sorted.map((transaction) => {
             const clientName = getClientName(clients, transaction.clientId);
             const group = groupByCategoryName.get(transaction.category) ?? "outro";
-            const overdue = isTransactionOverdue(transaction);
+            const overdue = isTransactionOverdue(transaction, referenceDate);
 
             return (
               <tr
