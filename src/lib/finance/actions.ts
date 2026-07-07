@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { addMonths } from "date-fns";
 import { createTask } from "@/lib/actions/tasks";
 import { computeNextRecurrenceDate } from "@/lib/finance/calculations";
 import { toDomainCategory, toDomainClient } from "@/lib/finance/mappers";
@@ -24,7 +25,15 @@ export type TransactionInput = {
   paidAt: string | null;
   status: TransactionStatus;
   recurrence: { frequency: RecurrenceFrequency; interval: number; nextDate: string } | null;
+  installmentsRemaining: number | null;
   isGoon: boolean;
+};
+
+/** Estado anterior de um lançamento antes de uma mudança de status — usado para desfazer. */
+export type StatusChangeSnapshot = {
+  id: string;
+  previousStatus: TransactionStatus;
+  previousPaidAt: string | null;
 };
 
 function revalidateFinance() {
@@ -52,6 +61,7 @@ export async function createFinanceTransaction(input: TransactionInput) {
       paidAt: input.paidAt ? new Date(input.paidAt) : null,
       status: input.status,
       isGoon: input.isGoon,
+      installmentsRemaining: input.installmentsRemaining,
       ...toRecurrenceData(input.recurrence),
     },
   });
@@ -72,6 +82,7 @@ export async function updateFinanceTransaction(id: string, input: TransactionInp
       paidAt: input.paidAt ? new Date(input.paidAt) : null,
       status: input.status,
       isGoon: input.isGoon,
+      installmentsRemaining: input.installmentsRemaining,
       ...toRecurrenceData(input.recurrence),
     },
   });
@@ -102,14 +113,16 @@ export async function duplicateFinanceTransaction(id: string) {
       recurrenceFrequency: original.recurrenceFrequency,
       recurrenceInterval: original.recurrenceInterval,
       recurrenceNextDate: original.recurrenceNextDate,
+      installmentsRemaining: original.installmentsRemaining,
     },
   });
   revalidateFinance();
 }
 
-async function applyMarkPaid(id: string) {
+/** Retorna o id da parcela/ocorrência seguinte criada automaticamente, se houver. */
+async function applyMarkPaid(id: string): Promise<string | null> {
   const transaction = await prisma.financeTransaction.findUnique({ where: { id } });
-  if (!transaction) return;
+  if (!transaction) return null;
 
   await prisma.financeTransaction.update({
     where: { id },
@@ -122,7 +135,7 @@ async function applyMarkPaid(id: string) {
       interval: transaction.recurrenceInterval ?? 1,
     });
 
-    await prisma.financeTransaction.create({
+    const created = await prisma.financeTransaction.create({
       data: {
         kind: transaction.kind,
         scope: transaction.scope,
@@ -140,12 +153,38 @@ async function applyMarkPaid(id: string) {
         originTransactionId: transaction.originTransactionId ?? transaction.id,
       },
     });
+    return created.id;
   }
+
+  // Parcelamento: se restar mais de 1 parcela (incluindo esta que acabou de ser
+  // paga), gera a próxima pro mês seguinte já com o contador decrementado.
+  if (transaction.installmentsRemaining && transaction.installmentsRemaining > 1) {
+    const created = await prisma.financeTransaction.create({
+      data: {
+        kind: transaction.kind,
+        scope: transaction.scope,
+        description: transaction.description,
+        amountCents: transaction.amountCents,
+        category: transaction.category,
+        clientId: transaction.clientId,
+        dueDate: addMonths(transaction.dueDate, 1),
+        paidAt: null,
+        status: "pendente",
+        isGoon: transaction.isGoon,
+        installmentsRemaining: transaction.installmentsRemaining - 1,
+        originTransactionId: transaction.originTransactionId ?? transaction.id,
+      },
+    });
+    return created.id;
+  }
+
+  return null;
 }
 
 export async function markFinanceTransactionPaid(id: string) {
-  await applyMarkPaid(id);
+  const followUpId = await applyMarkPaid(id);
   revalidateFinance();
+  return followUpId;
 }
 
 export async function markFinanceTransactionUnpaid(id: string) {
@@ -164,8 +203,10 @@ export async function markFinanceTransactionUnpaid(id: string) {
 export async function markManyFinanceTransactionsPaid(ids: string[]) {
   // Cada item é independente (update próprio + possível próxima ocorrência) —
   // em paralelo, o tempo total é o do item mais lento, não a soma de todos.
-  await Promise.all(ids.map((id) => applyMarkPaid(id)));
+  // O mapa id -> id da parcela/ocorrência seguinte permite desfazer em massa.
+  const entries = await Promise.all(ids.map(async (id) => [id, await applyMarkPaid(id)] as const));
   revalidateFinance();
+  return Object.fromEntries(entries) as Record<string, string | null>;
 }
 
 export async function markManyFinanceTransactionsUnpaid(ids: string[]) {
@@ -189,6 +230,37 @@ export async function updateFinanceTransactionStatus(id: string, status: Transac
     where: { id },
     data: { status, paidAt: null },
   });
+  revalidateFinance();
+  return null;
+}
+
+/**
+ * Desfaz uma ou mais mudanças de status (ex.: marcar como pago sem querer).
+ * Se a mudança tiver gerado uma parcela/ocorrência seguinte automaticamente,
+ * ela é removida — mas só enquanto ainda estiver "pendente" e intocada, pra
+ * não apagar algo que o usuário já editou depois.
+ */
+export async function revertFinanceTransactionsStatus(
+  snapshots: (StatusChangeSnapshot & { followUpId: string | null })[]
+) {
+  const followUpIds = snapshots.map((s) => s.followUpId).filter((v): v is string => v !== null);
+  if (followUpIds.length > 0) {
+    await prisma.financeTransaction.deleteMany({
+      where: { id: { in: followUpIds }, status: "pendente" },
+    });
+  }
+
+  await Promise.all(
+    snapshots.map((s) =>
+      prisma.financeTransaction.update({
+        where: { id: s.id },
+        data: {
+          status: s.previousStatus,
+          paidAt: s.previousPaidAt ? new Date(s.previousPaidAt) : null,
+        },
+      })
+    )
+  );
   revalidateFinance();
 }
 

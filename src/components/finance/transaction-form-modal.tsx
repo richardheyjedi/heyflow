@@ -126,6 +126,9 @@ function TransactionForm({
   const [status, setStatus] = useState<TransactionStatus>(editing?.status ?? "pendente");
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<string>(editing?.recurrence?.frequency ?? "none");
   const [recurrenceInterval, setRecurrenceInterval] = useState(String(editing?.recurrence?.interval ?? 1));
+  const [installmentsRemaining, setInstallmentsRemaining] = useState(
+    editing?.installmentsRemaining != null ? String(editing.installmentsRemaining) : ""
+  );
   const [isGoon, setIsGoon] = useState<boolean>(editing?.isGoon ?? defaults?.isGoon ?? false);
 
   const categoryItems: Record<string, string> = Object.fromEntries(categories.map((c) => [c.name, c.name]));
@@ -209,6 +212,10 @@ function TransactionForm({
         paidAt: paidAt || null,
         status,
         recurrence,
+        installmentsRemaining:
+          kind === "despesa" && recurrence === null && installmentsRemaining.trim()
+            ? Math.max(1, Number.parseInt(installmentsRemaining, 10) || 1)
+            : null,
         isGoon,
       };
 
@@ -424,6 +431,23 @@ function TransactionForm({
             </div>
           )}
         </div>
+
+        {kind === "despesa" && recurrenceFrequency === "none" && (
+          <div className="space-y-1.5">
+            <Label htmlFor="tx-installments">Parcelas restantes (opcional)</Label>
+            <Input
+              id="tx-installments"
+              type="number"
+              min={1}
+              placeholder="Ex.: 5"
+              value={installmentsRemaining}
+              onChange={(e) => setInstallmentsRemaining(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Ao marcar esta despesa como paga, a próxima parcela é criada automaticamente para o mês seguinte, com o número decrescido, até acabar.
+            </p>
+          </div>
+        )}
       </div>
 
       <DialogFooter>

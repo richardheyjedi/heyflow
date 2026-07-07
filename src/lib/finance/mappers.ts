@@ -48,6 +48,7 @@ export function toDomainTransaction(row: TransactionRow): Transaction {
           nextDate: row.recurrenceNextDate ? formatDateOnly(row.recurrenceNextDate) : formatDateOnly(row.dueDate),
         }
       : null,
+    installmentsRemaining: row.installmentsRemaining,
     reminderId: row.reminder?.id ?? null,
     originTransactionId: row.originTransactionId,
     isGoon: row.isGoon,

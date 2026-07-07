@@ -88,6 +88,8 @@ export type Transaction = {
   paidAt: string | null; // ISO yyyy-MM-dd
   status: TransactionStatus;
   recurrence: RecurrenceRule | null;
+  /** Parcelamento (despesas): quantas parcelas, incluindo esta, ainda restam. */
+  installmentsRemaining: number | null;
   reminderId: string | null;
   /** Se esta transação foi gerada automaticamente a partir de uma recorrente. */
   originTransactionId: string | null;

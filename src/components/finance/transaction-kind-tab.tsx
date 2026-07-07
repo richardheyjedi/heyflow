@@ -15,6 +15,7 @@ import {
   deleteManyFinanceTransactions,
   markManyFinanceTransactionsPaid,
   markManyFinanceTransactionsUnpaid,
+  revertFinanceTransactionsStatus,
 } from "@/lib/finance/actions";
 import { parseISO } from "date-fns";
 import {
@@ -130,18 +131,49 @@ export function TransactionKindTab({
 
   function handleBulkMarkPaid() {
     const ids = Array.from(visibleSelectedIds);
+    const previous = filtered.filter((t) => visibleSelectedIds.has(t.id));
     startBulkTransition(async () => {
-      await markManyFinanceTransactionsPaid(ids);
-      toast.success(`${ids.length} ${copy.itemLabel}(s) marcado(s) como pago.`);
+      const followUps = await markManyFinanceTransactionsPaid(ids);
+      toast.success(`${ids.length} ${copy.itemLabel}(s) marcado(s) como pago.`, {
+        action: {
+          label: "Desfazer",
+          onClick: () => {
+            startBulkTransition(async () => {
+              await revertFinanceTransactionsStatus(
+                previous.map((t) => ({
+                  id: t.id,
+                  previousStatus: t.status,
+                  previousPaidAt: t.paidAt,
+                  followUpId: followUps[t.id] ?? null,
+                }))
+              );
+              toast.success("Alteração desfeita.");
+            });
+          },
+        },
+      });
       setSelectedIds(new Set());
     });
   }
 
   function handleBulkMarkUnpaid() {
     const ids = Array.from(visibleSelectedIds);
+    const previous = filtered.filter((t) => visibleSelectedIds.has(t.id));
     startBulkTransition(async () => {
       await markManyFinanceTransactionsUnpaid(ids);
-      toast.success(`${ids.length} ${copy.itemLabel}(s) marcado(s) como não pago.`);
+      toast.success(`${ids.length} ${copy.itemLabel}(s) marcado(s) como não pago.`, {
+        action: {
+          label: "Desfazer",
+          onClick: () => {
+            startBulkTransition(async () => {
+              await revertFinanceTransactionsStatus(
+                previous.map((t) => ({ id: t.id, previousStatus: t.status, previousPaidAt: t.paidAt, followUpId: null }))
+              );
+              toast.success("Alteração desfeita.");
+            });
+          },
+        },
+      });
       setSelectedIds(new Set());
     });
   }

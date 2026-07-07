@@ -32,6 +32,7 @@ function makeTransaction(overrides: Partial<Transaction>): Transaction {
     paidAt: null,
     status: "nao_pago",
     recurrence: null,
+    installmentsRemaining: null,
     reminderId: null,
     originTransactionId: null,
     isGoon: false,

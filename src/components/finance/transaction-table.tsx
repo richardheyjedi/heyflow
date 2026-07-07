@@ -11,6 +11,7 @@ import {
   ArrowUpDown,
   BellRing,
   Check,
+  ListOrdered,
   MoreHorizontal,
   Repeat,
 } from "lucide-react";
@@ -33,6 +34,7 @@ import { CategoryBadge } from "@/components/finance/category-badge";
 import {
   deleteFinanceTransaction,
   duplicateFinanceTransaction,
+  revertFinanceTransactionsStatus,
   updateFinanceTransactionCategory,
   updateFinanceTransactionStatus,
 } from "@/lib/finance/actions";
@@ -112,9 +114,24 @@ export function TransactionTable({
     }
   }
 
-  function handleStatusChange(id: string, status: TransactionStatus) {
+  function handleStatusChange(transaction: Transaction, status: TransactionStatus) {
+    const previousStatus = transaction.status;
+    const previousPaidAt = transaction.paidAt;
     startTransition(async () => {
-      await updateFinanceTransactionStatus(id, status);
+      const followUpId = await updateFinanceTransactionStatus(transaction.id, status);
+      toast.success(`Status atualizado para "${STATUS_LABEL[status]}".`, {
+        action: {
+          label: "Desfazer",
+          onClick: () => {
+            startTransition(async () => {
+              await revertFinanceTransactionsStatus([
+                { id: transaction.id, previousStatus, previousPaidAt, followUpId },
+              ]);
+              toast.success("Alteração desfeita.");
+            });
+          },
+        },
+      });
     });
   }
 
@@ -216,6 +233,15 @@ export function TransactionTable({
                   </button>
                   <span className="ml-1 inline-flex items-center gap-1 align-middle text-muted-foreground">
                     {transaction.recurrence && <Repeat className="size-3" />}
+                    {transaction.installmentsRemaining != null && (
+                      <span
+                        className="inline-flex items-center gap-0.5 text-[10px]"
+                        title={`${transaction.installmentsRemaining} parcela(s) restante(s)`}
+                      >
+                        <ListOrdered className="size-3" />
+                        {transaction.installmentsRemaining}x
+                      </span>
+                    )}
                     {transaction.reminderId && <BellRing className="size-3 text-primary" />}
                   </span>
                 </td>
@@ -260,7 +286,7 @@ export function TransactionTable({
                 <td className="whitespace-nowrap border-b border-border/40 px-3 py-2">
                   <Select
                     value={transaction.status}
-                    onValueChange={(v) => v && handleStatusChange(transaction.id, v as TransactionStatus)}
+                    onValueChange={(v) => v && handleStatusChange(transaction, v as TransactionStatus)}
                   >
                     <SelectTrigger
                       className={cn(

@@ -197,6 +197,12 @@ model FinanceTransaction {
   recurrenceInterval  Int?
   recurrenceNextDate  DateTime?
 
+  // Parcelamento (despesas) — quantas parcelas (incluindo esta) ainda restam.
+  // Ao marcar como paga, se > 1, gera a próxima parcela pro mês seguinte com
+  // este valor decrementado. Independente de recurrenceFrequency (não usa os
+  // dois ao mesmo tempo).
+  installmentsRemaining Int?
+
   originTransactionId String?
 
   clientId String?
