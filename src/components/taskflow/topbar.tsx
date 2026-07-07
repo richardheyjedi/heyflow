@@ -1,5 +1,6 @@
 import { LogOut } from "lucide-react";
 import { GlobalSearch } from "@/components/taskflow/global-search";
+import { MobileMenuButton } from "@/components/taskflow/mobile-menu-button";
 import { NotificationsDropdown } from "@/components/taskflow/notifications-dropdown";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -15,7 +16,8 @@ export async function Topbar() {
   const notifications = await getNotifications();
 
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-border/60 bg-background/70 px-6 py-3.5 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border/60 bg-background/70 px-4 py-3.5 backdrop-blur-xl md:gap-4 md:px-6">
+      <MobileMenuButton />
       <GlobalSearch />
       <div className="ml-auto flex items-center gap-3">
         <NotificationsDropdown notifications={notifications} />

@@ -34,6 +34,16 @@ const TYPE_COLOR = {
 export function NotificationsDropdown({ notifications }: { notifications: NotificationWithTask[] }) {
   const [items, setItems] = useState(notifications);
   const [, startTransition] = useTransition();
+
+  // Sincroniza o estado local quando o servidor manda notificações novas
+  // (padrão "adjust state during render") — sem isso, o sino ficava congelado
+  // na primeira renderização e só atualizava com um reload completo.
+  const [prevNotifications, setPrevNotifications] = useState(notifications);
+  if (prevNotifications !== notifications) {
+    setPrevNotifications(notifications);
+    setItems(notifications);
+  }
+
   const unreadCount = items.filter((n) => !n.read).length;
 
   function handleMarkRead(id: string) {

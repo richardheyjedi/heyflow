@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -29,17 +30,43 @@ const NAV_ITEMS = [
 
 export function Sidebar({ projects }: { projects: (Project & { pendingCount: number })[] }) {
   const pathname = usePathname();
-  const collapsed = useUiStore((s) => s.sidebarCollapsed);
+  const collapsedPref = useUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const mobileOpen = useUiStore((s) => s.mobileSidebarOpen);
+  const closeMobileSidebar = useUiStore((s) => s.closeMobileSidebar);
   const openCreateTaskModal = useUiStore((s) => s.openCreateTaskModal);
   const openCreateProjectModal = useUiStore((s) => s.openCreateProjectModal);
   const openEditProjectModal = useUiStore((s) => s.openEditProjectModal);
 
+  // Navegou? Fecha o drawer mobile — senão ele fica aberto por cima da página nova.
+  useEffect(() => {
+    closeMobileSidebar();
+  }, [pathname, closeMobileSidebar]);
+
+  // No drawer mobile a sidebar sempre aparece completa — o modo "recolhido"
+  // (só ícones) é uma preferência de desktop.
+  const collapsed = collapsedPref && !mobileOpen;
+
   return (
+    <>
+      {/* Backdrop do drawer mobile */}
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          onClick={closeMobileSidebar}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+        />
+      )}
     <aside
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar/95 backdrop-blur-xl transition-all duration-200",
-        collapsed ? "w-[76px]" : "w-64"
+        // Mobile: drawer off-canvas fixo, largura cheia da sidebar, escondido
+        // por padrão. Desktop (md+): sticky como antes.
+        "flex h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar/95 backdrop-blur-xl transition-all duration-200",
+        "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-72 max-md:transition-transform",
+        mobileOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full",
+        "md:sticky md:top-0",
+        collapsed ? "md:w-[76px]" : "md:w-64"
       )}
     >
       <div className={cn("flex items-center gap-2 px-4 py-5", collapsed && "justify-center px-0")}>
@@ -139,7 +166,8 @@ export function Sidebar({ projects }: { projects: (Project & { pendingCount: num
         </div>
       </div>
 
-      <div className={cn("border-t border-sidebar-border p-3", collapsed && "flex justify-center")}>
+      {/* "Recolher" só faz sentido no desktop — no mobile o drawer fecha pelo backdrop. */}
+      <div className={cn("border-t border-sidebar-border p-3 max-md:hidden", collapsed && "flex justify-center")}>
         <button
           onClick={toggleSidebar}
           className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -149,5 +177,6 @@ export function Sidebar({ projects }: { projects: (Project & { pendingCount: num
         </button>
       </div>
     </aside>
+    </>
   );
 }

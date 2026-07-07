@@ -19,6 +19,11 @@ type UiState = {
 
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
+
+  /** Drawer da sidebar no mobile (off-canvas) — independente do "recolher" do desktop. */
+  mobileSidebarOpen: boolean;
+  toggleMobileSidebar: () => void;
+  closeMobileSidebar: () => void;
 };
 
 export const useUiStore = create<UiState>((set) => ({
@@ -46,4 +51,8 @@ export const useUiStore = create<UiState>((set) => ({
 
   sidebarCollapsed: false,
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+
+  mobileSidebarOpen: false,
+  toggleMobileSidebar: () => set((state) => ({ mobileSidebarOpen: !state.mobileSidebarOpen })),
+  closeMobileSidebar: () => set({ mobileSidebarOpen: false }),
 }));

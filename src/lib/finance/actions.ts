@@ -162,9 +162,9 @@ export async function markFinanceTransactionUnpaid(id: string) {
 // ---------------------------------------------------------------------------
 
 export async function markManyFinanceTransactionsPaid(ids: string[]) {
-  for (const id of ids) {
-    await applyMarkPaid(id);
-  }
+  // Cada item é independente (update próprio + possível próxima ocorrência) —
+  // em paralelo, o tempo total é o do item mais lento, não a soma de todos.
+  await Promise.all(ids.map((id) => applyMarkPaid(id)));
   revalidateFinance();
 }
 

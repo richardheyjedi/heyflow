@@ -9,10 +9,6 @@ export async function getNotifications(limit = 30) {
   });
 }
 
-export async function getUnreadNotificationCount() {
-  return prisma.notification.count({ where: { read: false } });
-}
-
 /**
  * Job simples executado a cada carregamento de página: verifica tarefas
  * atrasadas ou que vencem nas próximas 24h e garante que exista uma

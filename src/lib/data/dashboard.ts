@@ -19,32 +19,32 @@ export async function getDashboardMetrics() {
   const lastWeekStart = subWeeks(weekStart, 1);
   const lastWeekEnd = subWeeks(weekEnd, 1);
 
-  const [completedToday, pending, overdue, completedThisWeek, dueThisWeek] = await Promise.all([
-    prisma.task.count({
-      where: { completedAt: { gte: todayStart, lte: todayEnd } },
-    }),
-    prisma.task.count({ where: { status: { not: "done" } } }),
-    prisma.task.count({
-      where: { status: { not: "done" }, dueDate: { lt: todayStart } },
-    }),
-    prisma.task.count({
-      where: { completedAt: { gte: weekStart, lte: weekEnd } },
-    }),
-    prisma.task.count({
-      where: { dueDate: { gte: weekStart, lte: weekEnd } },
-    }),
-  ]);
+  // Uma única leva paralela — cada query é uma round-trip ao banco remoto,
+  // então duas levas sequenciais dobravam a latência sem necessidade.
+  const [completedToday, pending, overdue, completedThisWeek, dueThisWeek, lastWeekCompleted, lastWeekDue] =
+    await Promise.all([
+      prisma.task.count({
+        where: { completedAt: { gte: todayStart, lte: todayEnd } },
+      }),
+      prisma.task.count({ where: { status: { not: "done" } } }),
+      prisma.task.count({
+        where: { status: { not: "done" }, dueDate: { lt: todayStart } },
+      }),
+      prisma.task.count({
+        where: { completedAt: { gte: weekStart, lte: weekEnd } },
+      }),
+      prisma.task.count({
+        where: { dueDate: { gte: weekStart, lte: weekEnd } },
+      }),
+      prisma.task.count({
+        where: { completedAt: { gte: lastWeekStart, lte: lastWeekEnd } },
+      }),
+      prisma.task.count({
+        where: { dueDate: { gte: lastWeekStart, lte: lastWeekEnd } },
+      }),
+    ]);
 
   const completionRate = dueThisWeek > 0 ? Math.round((completedThisWeek / dueThisWeek) * 100) : 0;
-
-  const [lastWeekCompleted, lastWeekDue] = await Promise.all([
-    prisma.task.count({
-      where: { completedAt: { gte: lastWeekStart, lte: lastWeekEnd } },
-    }),
-    prisma.task.count({
-      where: { dueDate: { gte: lastWeekStart, lte: lastWeekEnd } },
-    }),
-  ]);
   const lastWeekRate = lastWeekDue > 0 ? Math.round((lastWeekCompleted / lastWeekDue) * 100) : 0;
 
   return {
@@ -62,24 +62,41 @@ export async function getWeeklyProgress() {
   const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  const results = await Promise.all(
-    days.map(async (day) => {
-      const dayStart = startOfDay(day);
-      const dayEnd = endOfDay(day);
-      const [completed, total] = await Promise.all([
-        prisma.task.count({ where: { completedAt: { gte: dayStart, lte: dayEnd } } }),
-        prisma.task.count({ where: { dueDate: { gte: dayStart, lte: dayEnd } } }),
-      ]);
-      return {
-        date: format(day, "yyyy-MM-dd"),
-        label: format(day, "EEEEEE", { locale: ptBR }),
-        completed,
-        total,
-      };
-    })
-  );
+  // 2 queries + agregação em JS, em vez de 2 counts POR DIA (14 round-trips
+  // ao banco remoto só para montar o gráfico da semana).
+  const [completedRows, dueRows] = await Promise.all([
+    prisma.task.findMany({
+      where: { completedAt: { gte: weekStart, lte: weekEnd } },
+      select: { completedAt: true },
+    }),
+    prisma.task.findMany({
+      where: { dueDate: { gte: weekStart, lte: weekEnd } },
+      select: { dueDate: true },
+    }),
+  ]);
 
-  return results;
+  const completedByDay = new Map<string, number>();
+  for (const row of completedRows) {
+    if (!row.completedAt) continue;
+    const key = format(row.completedAt, "yyyy-MM-dd");
+    completedByDay.set(key, (completedByDay.get(key) ?? 0) + 1);
+  }
+  const dueByDay = new Map<string, number>();
+  for (const row of dueRows) {
+    if (!row.dueDate) continue;
+    const key = format(row.dueDate, "yyyy-MM-dd");
+    dueByDay.set(key, (dueByDay.get(key) ?? 0) + 1);
+  }
+
+  return days.map((day) => {
+    const key = format(day, "yyyy-MM-dd");
+    return {
+      date: key,
+      label: format(day, "EEEEEE", { locale: ptBR }),
+      completed: completedByDay.get(key) ?? 0,
+      total: dueByDay.get(key) ?? 0,
+    };
+  });
 }
 
 export async function getProjectDistribution() {

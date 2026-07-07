@@ -95,8 +95,10 @@ export async function toggleTaskDone(id: string) {
 
   if (isNowDone && task.recurrenceRule && task.dueDate) {
     const nextDueDate = computeNextOccurrence(task.dueDate, task.recurrenceRule);
-    const subtasks = await prisma.subtask.findMany({ where: { taskId: id }, orderBy: { order: "asc" } });
-    const tags = await prisma.taskTag.findMany({ where: { taskId: id } });
+    const [subtasks, tags] = await Promise.all([
+      prisma.subtask.findMany({ where: { taskId: id }, orderBy: { order: "asc" } }),
+      prisma.taskTag.findMany({ where: { taskId: id } }),
+    ]);
 
     await prisma.task.create({
       data: {

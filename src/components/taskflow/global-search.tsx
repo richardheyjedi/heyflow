@@ -17,15 +17,21 @@ export function GlobalSearch() {
   const openEditTaskModal = useUiStore((s) => s.openEditTaskModal);
 
   useEffect(() => {
+    // `cancelled` descarta respostas atrasadas — sem isso, uma busca antiga e
+    // lenta podia sobrescrever os resultados de uma busca mais recente.
+    let cancelled = false;
     const timeout = setTimeout(async () => {
       if (!query.trim()) {
         setResults([]);
         return;
       }
       const tasks = await searchTasksAction(query);
-      setResults(tasks);
+      if (!cancelled) setResults(tasks);
     }, 200);
-    return () => clearTimeout(timeout);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
   }, [query]);
 
   useEffect(() => {

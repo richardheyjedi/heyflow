@@ -2,15 +2,16 @@ import { prisma } from "@/lib/prisma";
 import { taskInclude } from "@/lib/data/tasks";
 
 export async function getProjects() {
-  const projects = await prisma.project.findMany({
-    orderBy: { createdAt: "asc" },
-  });
-
-  const pendingCounts = await prisma.task.groupBy({
-    by: ["projectId"],
-    where: { status: { not: "done" } },
-    _count: { _all: true },
-  });
+  const [projects, pendingCounts] = await Promise.all([
+    prisma.project.findMany({
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.task.groupBy({
+      by: ["projectId"],
+      where: { status: { not: "done" } },
+      _count: { _all: true },
+    }),
+  ]);
   const countMap = new Map(pendingCounts.map((p) => [p.projectId, p._count._all]));
 
   return projects.map((project) => ({
