@@ -73,7 +73,7 @@ export function Sidebar({ projects }: { projects: (Project & { pendingCount: num
         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-violet glow-violet-sm">
           <Sparkles className="size-4 text-white" />
         </div>
-        {!collapsed && <span className="text-base font-semibold tracking-tight text-foreground">TaskFlow</span>}
+        {!collapsed && <span className="text-base font-semibold tracking-tight text-foreground">Heyflow</span>}
       </div>
 
       <div className={cn("flex flex-col gap-1.5 px-3", collapsed && "items-center px-2")}>

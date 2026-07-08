@@ -25,7 +25,7 @@ export default function LoginPage() {
             <Lock className="size-5" />
           </span>
           <div>
-            <h1 className="text-lg font-semibold text-foreground">TaskFlow</h1>
+            <h1 className="text-lg font-semibold text-foreground">Heyflow</h1>
             <p className="text-sm text-muted-foreground">Digite a senha para continuar.</p>
           </div>
         </div>

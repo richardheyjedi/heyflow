@@ -65,7 +65,7 @@ function ScheduleChargeForm({
     startTransition(async () => {
       try {
         await scheduleFinanceReminder(transaction.id, date, message.trim());
-        toast.success("Cobrança agendada — lembrete criado no TaskFlow.");
+        toast.success("Cobrança agendada — lembrete criado no Heyflow.");
         onClose();
       } catch {
         toast.error("Não foi possível agendar a cobrança.");
@@ -88,7 +88,7 @@ function ScheduleChargeForm({
           <Textarea id="reminder-message" value={message} onChange={(e) => setMessage(e.target.value)} rows={3} />
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Isso cria uma tarefa de alta prioridade no TaskFlow na data escolhida.
+          Isso cria uma tarefa de alta prioridade no Heyflow na data escolhida.
         </p>
       </div>
       <DialogFooter>

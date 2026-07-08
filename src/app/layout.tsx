@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TaskFlow",
+  title: "Heyflow",
   description: "Gerenciamento de tarefas e projetos, com visão por dia, semana e mês.",
 };
 
