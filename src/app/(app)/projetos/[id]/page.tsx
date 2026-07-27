@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { DynamicIcon } from "@/components/taskflow/dynamic-icon";
 import { ProjectHeaderActions } from "@/components/taskflow/project-header-actions";
 import { DeadlineBadge } from "@/components/taskflow/deadline-badge";
+import { ProjectTypeBadge } from "@/components/taskflow/project-type-badge";
 import { KanbanBoard } from "@/components/taskflow/kanban-board";
 import { getProjectById } from "@/lib/data/projects";
 
@@ -28,6 +29,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-semibold tracking-tight text-foreground">{project.name}</h1>
+                <ProjectTypeBadge type={project.type} />
                 <DeadlineBadge deadline={project.deadline} />
               </div>
               {project.description && (

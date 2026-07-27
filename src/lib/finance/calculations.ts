@@ -469,6 +469,38 @@ export function getClientStats(transactions: Transaction[], clients: Client[], r
 }
 
 // ---------------------------------------------------------------------------
+// Fechamento de mês ("virar o mês")
+// ---------------------------------------------------------------------------
+
+export type MonthClosureSummary = {
+  monthKey: string; // "yyyy-MM"
+  totalReceivedCents: number;
+  totalPaidCents: number;
+  totalReceivableCents: number;
+  totalPayableCents: number;
+  saldoCents: number;
+  pendingCount: number;
+};
+
+/** Congela os totais do mês (por vencimento) na data de referência — usado ao fechar o mês. */
+export function getMonthClosureSummary(transactions: Transaction[], referenceDate: Date = new Date()): MonthClosureSummary {
+  const start = startOfMonth(referenceDate);
+  const end = endOfMonth(referenceDate);
+  const doMes = transactions.filter((t) => !t.isGoon && isWithinInterval(parseISO(t.dueDate), { start, end }));
+  const totals = getTotals(doMes);
+
+  return {
+    monthKey: format(referenceDate, "yyyy-MM"),
+    totalReceivedCents: totals.totalReceivedCents,
+    totalPaidCents: totals.totalPaidCents,
+    totalReceivableCents: totals.totalReceivableCents,
+    totalPayableCents: totals.totalPayableCents,
+    saldoCents: totals.saldoMesCents,
+    pendingCount: doMes.filter((t) => t.status !== "pago").length,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Exportação CSV
 // ---------------------------------------------------------------------------
 

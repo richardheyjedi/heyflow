@@ -47,6 +47,58 @@ export function Sidebar({ projects }: { projects: (Project & { pendingCount: num
   // (só ícones) é uma preferência de desktop.
   const collapsed = collapsedPref && !mobileOpen;
 
+  const clientProjects = projects.filter((p) => p.type === "cliente");
+  const personalProjects = projects.filter((p) => p.type === "pessoal");
+
+  function renderProjectLink(project: Project & { pendingCount: number }) {
+    const isActive = pathname === `/projetos/${project.id}`;
+    return (
+      <Link
+        key={project.id}
+        href={`/projetos/${project.id}`}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          openEditProjectModal(project);
+        }}
+        className={cn(
+          "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+          collapsed && "size-9 justify-center px-0"
+        )}
+        title={project.name}
+      >
+        <span
+          className="flex size-5 shrink-0 items-center justify-center rounded-md"
+          style={{ backgroundColor: `${project.color}22`, color: project.color }}
+        >
+          <DynamicIcon name={project.icon} className="size-3" />
+        </span>
+        {!collapsed && (
+          <>
+            <span className="flex-1 truncate">{project.name}</span>
+            {project.pendingCount > 0 && (
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                {project.pendingCount}
+              </span>
+            )}
+          </>
+        )}
+      </Link>
+    );
+  }
+
+  function renderProjectGroup(label: string, group: (Project & { pendingCount: number })[]) {
+    if (group.length === 0) return null;
+    return (
+      <div className="mb-4 last:mb-0">
+        <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          {label}
+        </p>
+        <div className="flex flex-col gap-0.5">{group.map((project) => renderProjectLink(project))}</div>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Backdrop do drawer mobile */}
@@ -121,49 +173,16 @@ export function Sidebar({ projects }: { projects: (Project & { pendingCount: num
       </nav>
 
       <div className="mt-6 flex-1 overflow-y-auto px-3">
-        {!collapsed && (
-          <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-            Projetos
-          </p>
+        {collapsed ? (
+          <div className="flex flex-col items-center gap-0.5">
+            {projects.map((project) => renderProjectLink(project))}
+          </div>
+        ) : (
+          <>
+            {renderProjectGroup("Clientes", clientProjects)}
+            {renderProjectGroup("Pessoais", personalProjects)}
+          </>
         )}
-        <div className={cn("flex flex-col gap-0.5", collapsed && "items-center")}>
-          {projects.map((project) => {
-            const isActive = pathname === `/projetos/${project.id}`;
-            return (
-              <Link
-                key={project.id}
-                href={`/projetos/${project.id}`}
-                onDoubleClick={(e) => {
-                  e.preventDefault();
-                  openEditProjectModal(project);
-                }}
-                className={cn(
-                  "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
-                  collapsed && "size-9 justify-center px-0"
-                )}
-                title={project.name}
-              >
-                <span
-                  className="flex size-5 shrink-0 items-center justify-center rounded-md"
-                  style={{ backgroundColor: `${project.color}22`, color: project.color }}
-                >
-                  <DynamicIcon name={project.icon} className="size-3" />
-                </span>
-                {!collapsed && (
-                  <>
-                    <span className="flex-1 truncate">{project.name}</span>
-                    {project.pendingCount > 0 && (
-                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                        {project.pendingCount}
-                      </span>
-                    )}
-                  </>
-                )}
-              </Link>
-            );
-          })}
-        </div>
       </div>
 
       {/* "Recolher" só faz sentido no desktop — no mobile o drawer fecha pelo backdrop. */}

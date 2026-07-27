@@ -3,7 +3,13 @@ import { FinanceOverview } from "@/components/finance/finance-overview";
 import { LancamentosSection } from "@/components/finance/lancamentos-section";
 import { ClientsTab } from "@/components/finance/clients-tab";
 import { DreTab } from "@/components/finance/dre-tab";
-import { getFinanceBudgets, getFinanceCategories, getFinanceClients, getFinanceTransactions } from "@/lib/finance/data";
+import {
+  getFinanceBudgets,
+  getFinanceCategories,
+  getFinanceClients,
+  getFinanceMonthClosures,
+  getFinanceTransactions,
+} from "@/lib/finance/data";
 import { format } from "date-fns";
 
 // Página do módulo Financeiro. Os dados vêm do Prisma (ver src/lib/finance/data.ts)
@@ -11,11 +17,12 @@ import { format } from "date-fns";
 // usado no resto do TaskFlow. `dynamic = "force-dynamic"` já está definido no
 // layout de (app) e cobre esta rota também.
 export default async function FinanceiroPage() {
-  const [transactions, clients, categories, budgets] = await Promise.all([
+  const [transactions, clients, categories, budgets, closures] = await Promise.all([
     getFinanceTransactions(),
     getFinanceClients(),
     getFinanceCategories(),
     getFinanceBudgets(),
+    getFinanceMonthClosures(),
   ]);
   // GOON é um ledger isolado — nunca deve entrar nos totais do financeiro principal.
   const mainTransactions = transactions.filter((t) => !t.isGoon);
@@ -41,7 +48,14 @@ export default async function FinanceiroPage() {
           <TabsTrigger value="dre">DRE</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-4">
-          <FinanceOverview transactions={mainTransactions} clients={clients} categories={categories} budgets={budgets} todayISO={todayISO} />
+          <FinanceOverview
+            transactions={mainTransactions}
+            clients={clients}
+            categories={categories}
+            budgets={budgets}
+            closures={closures}
+            todayISO={todayISO}
+          />
         </TabsContent>
         <TabsContent value="transactions" className="mt-4">
           <LancamentosSection transactions={transactions} clients={clients} categories={categories} todayISO={todayISO} />

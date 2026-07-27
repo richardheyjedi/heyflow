@@ -2,12 +2,14 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import type { ProjectType } from "@/generated/prisma/client";
 
 export type ProjectFormInput = {
   name: string;
   description?: string | null;
   color: string;
   icon: string;
+  type: ProjectType;
   deadline?: string | null;
 };
 

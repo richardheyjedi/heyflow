@@ -19,5 +19,7 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // api/cron fica de fora: autentica via CRON_SECRET (ver route.ts), não por
+  // sessão de login — o Vercel Cron não tem cookie de sessão.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/cron).*)"],
 };

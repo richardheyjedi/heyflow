@@ -69,15 +69,21 @@ enum FinanceCategoryGroup {
   outro
 }
 
+enum ProjectType {
+  cliente
+  pessoal
+}
+
 model Project {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
   description String?
-  color       String    @default("#8B5CF6")
-  icon        String    @default("Folder")
+  color       String      @default("#8B5CF6")
+  icon        String      @default("Folder")
+  type        ProjectType @default(pessoal)
   deadline    DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   tasks Task[]
 
@@ -238,4 +244,22 @@ model FinanceReminder {
   task        Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@map("finance_reminders")
+}
+
+// Snapshot congelado de um mês fechado ("virar o mês") — não apaga nem altera
+// FinanceTransaction (que continua sendo a fonte de verdade histórica), só
+// registra que aquele mês foi encerrado e guarda os totais no momento do
+// fechamento, pra consulta rápida sem recalcular sobre o histórico inteiro.
+model FinanceMonthClosure {
+  id                   String   @id @default(cuid())
+  monthKey             String   @unique // "yyyy-MM"
+  closedAt             DateTime @default(now())
+  totalReceivedCents   Int
+  totalPaidCents       Int
+  totalReceivableCents Int
+  totalPayableCents    Int
+  saldoCents           Int
+  pendingCount         Int
+
+  @@map("finance_month_closures")
 }

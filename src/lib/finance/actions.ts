@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { addMonths } from "date-fns";
 import { createTask } from "@/lib/actions/tasks";
-import { computeNextRecurrenceDate } from "@/lib/finance/calculations";
-import { toDomainCategory, toDomainClient } from "@/lib/finance/mappers";
+import { computeNextRecurrenceDate, getMonthClosureSummary } from "@/lib/finance/calculations";
+import { toDomainCategory, toDomainClient, toDomainMonthClosure, toDomainTransaction } from "@/lib/finance/mappers";
 import type {
   CategoryGroup,
   OwnerScope,
@@ -377,4 +377,41 @@ export async function setFinanceBudget(group: CategoryGroup, limitCents: number)
 export async function removeFinanceBudget(group: CategoryGroup) {
   await prisma.financeBudget.deleteMany({ where: { group } });
   revalidateFinance();
+}
+
+// ---------------------------------------------------------------------------
+// Fechamento de mês ("virar o mês")
+//
+// Não apaga nem altera nenhuma FinanceTransaction — o histórico continua
+// intacto (DRE, fluxo de caixa e estatísticas de cliente dependem dele). Só
+// congela um snapshot dos totais do mês em FinanceMonthClosure, permitindo
+// consultar "como fechou" aquele mês sem recalcular sobre todo o histórico.
+// Idempotente: fechar o mesmo mês de novo apenas retorna o snapshot existente.
+// ---------------------------------------------------------------------------
+
+export async function closeFinanceMonth(referenceDateISO?: string) {
+  const referenceDate = referenceDateISO ? new Date(referenceDateISO) : new Date();
+  const monthKey = referenceDate.toISOString().slice(0, 7);
+
+  const existing = await prisma.financeMonthClosure.findUnique({ where: { monthKey } });
+  if (existing) return toDomainMonthClosure(existing);
+
+  const rows = await prisma.financeTransaction.findMany();
+  const transactions = rows.map((row) => toDomainTransaction(row));
+  const summary = getMonthClosureSummary(transactions, referenceDate);
+
+  const closure = await prisma.financeMonthClosure.create({
+    data: {
+      monthKey: summary.monthKey,
+      totalReceivedCents: summary.totalReceivedCents,
+      totalPaidCents: summary.totalPaidCents,
+      totalReceivableCents: summary.totalReceivableCents,
+      totalPayableCents: summary.totalPayableCents,
+      saldoCents: summary.saldoCents,
+      pendingCount: summary.pendingCount,
+    },
+  });
+
+  revalidateFinance();
+  return toDomainMonthClosure(closure);
 }

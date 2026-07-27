@@ -10,6 +10,7 @@ import { MetricCard } from "@/components/taskflow/dashboard/metric-card";
 import { CashFlowChart } from "@/components/finance/cash-flow-chart";
 import { PaymentCutoffsPanel } from "@/components/finance/payment-cutoffs-panel";
 import { MonthSettledBanner } from "@/components/finance/month-settled-banner";
+import { MonthClosurePanel } from "@/components/finance/month-closure-panel";
 import { DueAlertsPanel } from "@/components/finance/due-alerts-panel";
 import { BalanceProjectionPanel } from "@/components/finance/balance-projection-panel";
 import { GroupBreakdownPanel } from "@/components/finance/group-breakdown-panel";
@@ -25,19 +26,21 @@ import {
   getUpcomingDue,
   projectBalance,
 } from "@/lib/finance/calculations";
-import type { Budget, Category, Client, Transaction } from "@/lib/finance/types";
+import type { Budget, Category, Client, MonthClosure, Transaction } from "@/lib/finance/types";
 
 export function FinanceOverview({
   transactions,
   clients,
   categories,
   budgets,
+  closures,
   todayISO,
 }: {
   transactions: Transaction[];
   clients: Client[];
   categories: Category[];
   budgets: Budget[];
+  closures: MonthClosure[];
   /** Dia de referência vindo do servidor — mantém SSR e cliente idênticos. */
   todayISO: string;
 }) {
@@ -81,6 +84,8 @@ export function FinanceOverview({
       </div>
 
       <MonthSettledBanner status={monthSettled} />
+
+      <MonthClosurePanel closures={closures} todayISO={todayISO} />
 
       <div className="rounded-2xl border border-border/70 bg-card/60 p-5">
         <h2 className="text-sm font-semibold text-foreground">Cortes de pagamento</h2>

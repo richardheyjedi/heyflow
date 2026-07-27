@@ -6,10 +6,11 @@ import type {
   FinanceBudget as PrismaFinanceBudget,
   FinanceCategory as PrismaFinanceCategory,
   FinanceClient as PrismaFinanceClient,
+  FinanceMonthClosure as PrismaFinanceMonthClosure,
   FinanceReminder as PrismaFinanceReminder,
   FinanceTransaction as PrismaFinanceTransaction,
 } from "@/generated/prisma/client";
-import type { Budget, Category, Client, Transaction } from "@/lib/finance/types";
+import type { Budget, Category, Client, MonthClosure, Transaction } from "@/lib/finance/types";
 
 type TransactionRow = PrismaFinanceTransaction & { reminder?: PrismaFinanceReminder | null };
 
@@ -67,5 +68,19 @@ export function toDomainCategory(row: PrismaFinanceCategory): Category {
 
 export function toDomainBudget(row: PrismaFinanceBudget): Budget {
   return { id: row.id, group: row.group, limitCents: row.limitCents };
+}
+
+export function toDomainMonthClosure(row: PrismaFinanceMonthClosure): MonthClosure {
+  return {
+    id: row.id,
+    monthKey: row.monthKey,
+    closedAt: row.closedAt.toISOString(),
+    totalReceivedCents: row.totalReceivedCents,
+    totalPaidCents: row.totalPaidCents,
+    totalReceivableCents: row.totalReceivableCents,
+    totalPayableCents: row.totalPayableCents,
+    saldoCents: row.saldoCents,
+    pendingCount: row.pendingCount,
+  };
 }
 

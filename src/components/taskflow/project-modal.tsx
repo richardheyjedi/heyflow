@@ -18,7 +18,12 @@ import { cn } from "@/lib/utils";
 import { useUiStore } from "@/store/ui-store";
 import { createProject, deleteProject, updateProject } from "@/lib/actions/projects";
 import { DynamicIcon } from "@/components/taskflow/dynamic-icon";
-import type { Project } from "@/generated/prisma/client";
+import type { Project, ProjectType } from "@/generated/prisma/client";
+
+const TYPE_OPTIONS: { value: ProjectType; label: string }[] = [
+  { value: "pessoal", label: "Pessoal" },
+  { value: "cliente", label: "Cliente" },
+];
 
 const COLOR_OPTIONS = ["#8B5CF6", "#A855F7", "#C084FC", "#7C3AED", "#6D28D9", "#FB7185", "#60A5FA", "#F59E0B"];
 const ICON_OPTIONS = [
@@ -67,6 +72,7 @@ function ProjectModalForm({
   const [description, setDescription] = useState(editingProject?.description ?? "");
   const [color, setColor] = useState(editingProject?.color ?? COLOR_OPTIONS[0]);
   const [icon, setIcon] = useState(editingProject?.icon ?? ICON_OPTIONS[0]);
+  const [type, setType] = useState<ProjectType>(editingProject?.type ?? "pessoal");
   const [deadline, setDeadline] = useState(
     editingProject?.deadline ? new Date(editingProject.deadline).toISOString().slice(0, 10) : ""
   );
@@ -81,6 +87,7 @@ function ProjectModalForm({
       description: description.trim() || null,
       color,
       icon,
+      type,
       deadline: deadline || null,
     };
 
@@ -121,6 +128,27 @@ function ProjectModalForm({
         <div className="space-y-1.5">
           <Label htmlFor="project-name">Nome</Label>
           <Input id="project-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Tipo</Label>
+          <div className="flex gap-2">
+            {TYPE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setType(option.value)}
+                className={cn(
+                  "flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors duration-150",
+                  type === option.value
+                    ? "border-primary/60 bg-primary/15 text-primary"
+                    : "border-border/60 text-muted-foreground hover:border-primary/30"
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-1.5">

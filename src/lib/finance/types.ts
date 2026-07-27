@@ -105,3 +105,16 @@ export const DEFAULT_FILTERS: TransactionFilters = {
 };
 
 export const PAYMENT_CUTOFF_DAYS = [5, 10, 15, 20, 25] as const;
+
+/** Snapshot congelado de um mês fechado ("virar o mês") — ver FinanceMonthClosure no schema. */
+export type MonthClosure = {
+  id: string;
+  monthKey: string; // "yyyy-MM"
+  closedAt: string;
+  totalReceivedCents: number;
+  totalPaidCents: number;
+  totalReceivableCents: number;
+  totalPayableCents: number;
+  saldoCents: number;
+  pendingCount: number;
+};
