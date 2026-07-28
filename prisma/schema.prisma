@@ -246,10 +246,12 @@ model FinanceReminder {
   @@map("finance_reminders")
 }
 
-// Snapshot congelado de um mês fechado ("virar o mês") — não apaga nem altera
-// FinanceTransaction (que continua sendo a fonte de verdade histórica), só
-// registra que aquele mês foi encerrado e guarda os totais no momento do
-// fechamento, pra consulta rápida sem recalcular sobre o histórico inteiro.
+// Snapshot congelado de um mês fechado ("virar o mês") — guarda os totais do
+// mês no momento do fechamento, pra consulta rápida sem recalcular sobre o
+// histórico inteiro. Ver closeFinanceMonth (src/lib/finance/actions.ts): o
+// fechamento também descarta despesas avulsas ainda não pagas daquele mês
+// (sem recorrência nem parcelas restantes) — despesas pagas, recorrências e
+// parcelamentos em andamento não são afetados.
 model FinanceMonthClosure {
   id                   String   @id @default(cuid())
   monthKey             String   @unique // "yyyy-MM"

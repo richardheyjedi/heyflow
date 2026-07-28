@@ -47,8 +47,8 @@ export function MonthClosurePanel({ closures, todayISO }: { closures: MonthClosu
         <div>
           <h2 className="text-sm font-semibold text-foreground">Virar o mês</h2>
           <p className="text-xs text-muted-foreground">
-            Congela os totais do mês corrente no histórico. Nenhum lançamento é apagado — acontece automaticamente
-            todo dia 1, mas você pode antecipar.
+            Congela os totais do mês no histórico e descarta despesas avulsas pendentes (sem recorrência ou parcelas).
+            Acontece automaticamente todo dia 1, mas você pode antecipar.
           </p>
         </div>
 
@@ -65,8 +65,9 @@ export function MonthClosurePanel({ closures, todayISO }: { closures: MonthClosu
             <AlertDialogHeader>
               <AlertDialogTitle>Virar o mês de {monthLabel(currentMonthKey)}?</AlertDialogTitle>
               <AlertDialogDescription>
-                Isso congela um snapshot dos totais deste mês no histórico. Os lançamentos continuam todos aqui —
-                nada é apagado ou alterado.
+                Isso congela um snapshot dos totais deste mês no histórico e apaga as despesas avulsas ainda não
+                pagas (sem recorrência nem parcelas restantes). Despesas já pagas, recorrências e parcelamentos em
+                andamento não são afetados.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
