@@ -81,6 +81,7 @@ model Project {
   color       String      @default("#8B5CF6")
   icon        String      @default("Folder")
   type        ProjectType @default(pessoal)
+  pinned      Boolean     @default(false)
   deadline    DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

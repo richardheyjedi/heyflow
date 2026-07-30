@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -13,12 +13,40 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sparkles,
+  Star,
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/store/ui-store";
 import { DynamicIcon } from "@/components/taskflow/dynamic-icon";
+import { toggleProjectPinned } from "@/lib/actions/projects";
 import type { Project } from "@/generated/prisma/client";
+
+function PinButton({ project }: { project: Project }) {
+  const [isPending, startTransition] = useTransition();
+
+  function handleClick(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    startTransition(() => toggleProjectPinned(project.id, !project.pinned));
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={isPending}
+      aria-pressed={project.pinned}
+      aria-label={project.pinned ? `Desafixar projeto ${project.name}` : `Fixar projeto ${project.name}`}
+      className={cn(
+        "flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/40 opacity-0 transition-opacity hover:text-amber-500 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100",
+        project.pinned && "text-amber-500 opacity-100"
+      )}
+    >
+      <Star className="size-3" fill={project.pinned ? "currentColor" : "none"} />
+    </button>
+  );
+}
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -60,6 +88,7 @@ export function Sidebar({ projects }: { projects: (Project & { pendingCount: num
           e.preventDefault();
           openEditProjectModal(project);
         }}
+        aria-label={collapsed ? project.name : undefined}
         className={cn(
           "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
           isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
@@ -81,6 +110,7 @@ export function Sidebar({ projects }: { projects: (Project & { pendingCount: num
                 {project.pendingCount}
               </span>
             )}
+            <PinButton project={project} />
           </>
         )}
       </Link>
@@ -131,6 +161,7 @@ export function Sidebar({ projects }: { projects: (Project & { pendingCount: num
       <div className={cn("flex flex-col gap-1.5 px-3", collapsed && "items-center px-2")}>
         <button
           onClick={() => openCreateTaskModal()}
+          aria-label={collapsed ? "Nova Tarefa" : undefined}
           className={cn(
             "flex items-center gap-2 rounded-lg bg-gradient-violet px-3 py-2 text-sm font-medium text-white shadow-sm transition-transform duration-150 glow-violet-sm hover:scale-[1.02] active:scale-[0.98]",
             collapsed && "size-9 justify-center px-0"
@@ -141,6 +172,7 @@ export function Sidebar({ projects }: { projects: (Project & { pendingCount: num
         </button>
         <button
           onClick={openCreateProjectModal}
+          aria-label={collapsed ? "Novo Projeto" : undefined}
           className={cn(
             "flex items-center gap-2 rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:border-primary/40 hover:text-foreground",
             collapsed && "size-9 justify-center px-0"
@@ -181,6 +213,15 @@ export function Sidebar({ projects }: { projects: (Project & { pendingCount: num
           <>
             {renderProjectGroup("Clientes", clientProjects)}
             {renderProjectGroup("Pessoais", personalProjects)}
+            <Link
+              href="/projetos"
+              className={cn(
+                "mt-1 block rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground/80 transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                pathname === "/projetos" && "bg-sidebar-accent text-sidebar-accent-foreground"
+              )}
+            >
+              Ver todos os projetos →
+            </Link>
           </>
         )}
       </div>
@@ -189,6 +230,7 @@ export function Sidebar({ projects }: { projects: (Project & { pendingCount: num
       <div className={cn("border-t border-sidebar-border p-3 max-md:hidden", collapsed && "flex justify-center")}>
         <button
           onClick={toggleSidebar}
+          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
           className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}

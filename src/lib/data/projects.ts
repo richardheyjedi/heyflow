@@ -4,7 +4,7 @@ import { taskInclude } from "@/lib/data/tasks";
 export async function getProjects() {
   const [projects, pendingCounts] = await Promise.all([
     prisma.project.findMany({
-      orderBy: { createdAt: "asc" },
+      orderBy: [{ pinned: "desc" }, { createdAt: "asc" }],
     }),
     prisma.task.groupBy({
       by: ["projectId"],

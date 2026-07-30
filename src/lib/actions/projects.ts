@@ -33,3 +33,8 @@ export async function deleteProject(id: string) {
   await prisma.project.delete({ where: { id } });
   revalidatePath("/", "layout");
 }
+
+export async function toggleProjectPinned(id: string, pinned: boolean) {
+  await prisma.project.update({ where: { id }, data: { pinned } });
+  revalidatePath("/", "layout");
+}

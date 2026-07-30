@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, Loader2 } from "lucide-react";
+import { Pencil, Plus, Star, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -17,12 +17,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useUiStore } from "@/store/ui-store";
 import { deleteAllTasksInProject } from "@/lib/actions/tasks";
+import { toggleProjectPinned } from "@/lib/actions/projects";
+import { cn } from "@/lib/utils";
 import type { Project } from "@/generated/prisma/client";
 
 export function ProjectHeaderActions({ project, taskCount }: { project: Project; taskCount: number }) {
   const openEditProjectModal = useUiStore((s) => s.openEditProjectModal);
   const openCreateTaskModal = useUiStore((s) => s.openCreateTaskModal);
   const [isPending, startTransition] = useTransition();
+  const [isPinPending, startPinTransition] = useTransition();
 
   function handleClearTasks() {
     startTransition(async () => {
@@ -31,8 +34,26 @@ export function ProjectHeaderActions({ project, taskCount }: { project: Project;
     });
   }
 
+  function handleTogglePin() {
+    startPinTransition(async () => {
+      await toggleProjectPinned(project.id, !project.pinned);
+      toast.success(project.pinned ? "Projeto desafixado." : "Projeto fixado no topo.");
+    });
+  }
+
   return (
     <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleTogglePin}
+        disabled={isPinPending}
+        aria-pressed={project.pinned}
+        className={cn(project.pinned && "border-amber-500/40 text-amber-500 hover:text-amber-500")}
+      >
+        <Star className="size-3.5" fill={project.pinned ? "currentColor" : "none"} />
+        {project.pinned ? "Fixado" : "Fixar"}
+      </Button>
       {taskCount > 0 && (
         <AlertDialog>
           <AlertDialogTrigger render={<Button variant="outline" size="sm" className="text-priority-urgent hover:text-priority-urgent" />}>

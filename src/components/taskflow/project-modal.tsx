@@ -25,7 +25,28 @@ const TYPE_OPTIONS: { value: ProjectType; label: string }[] = [
   { value: "cliente", label: "Cliente" },
 ];
 
-const COLOR_OPTIONS = ["#8B5CF6", "#A855F7", "#C084FC", "#7C3AED", "#6D28D9", "#FB7185", "#60A5FA", "#F59E0B"];
+const COLOR_OPTIONS = [
+  "#8B5CF6",
+  "#A855F7",
+  "#C084FC",
+  "#7C3AED",
+  "#6D28D9",
+  "#EC4899",
+  "#FB7185",
+  "#EF4444",
+  "#F59E0B",
+  "#F97316",
+  "#EAB308",
+  "#84CC16",
+  "#22C55E",
+  "#10B981",
+  "#14B8A6",
+  "#06B6D4",
+  "#60A5FA",
+  "#3B82F6",
+  "#6366F1",
+  "#78716C",
+];
 const ICON_OPTIONS = [
   "Folder",
   "Layout",
@@ -39,6 +60,22 @@ const ICON_OPTIONS = [
   "ShoppingBag",
   "Heart",
   "Star",
+  "Target",
+  "Palette",
+  "Globe",
+  "BookOpen",
+  "Camera",
+  "Music",
+  "Coffee",
+  "Zap",
+  "Home",
+  "GraduationCap",
+  "Plane",
+  "Wrench",
+  "Dumbbell",
+  "PiggyBank",
+  "Gift",
+  "Gamepad2",
 ];
 
 export function ProjectModal() {
@@ -48,7 +85,7 @@ export function ProjectModal() {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && closeProjectModal()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
         <ProjectModalForm
           key={isOpen ? (editingProject?.id ?? "new") : "closed"}
           editingProject={editingProject}
@@ -138,8 +175,9 @@ function ProjectModalForm({
                 key={option.value}
                 type="button"
                 onClick={() => setType(option.value)}
+                aria-pressed={type === option.value}
                 className={cn(
-                  "flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors duration-150",
+                  "flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                   type === option.value
                     ? "border-primary/60 bg-primary/15 text-primary"
                     : "border-border/60 text-muted-foreground hover:border-primary/30"
@@ -179,8 +217,10 @@ function ProjectModalForm({
                 key={c}
                 type="button"
                 onClick={() => setColor(c)}
+                aria-label={`Cor ${c}`}
+                aria-pressed={color === c}
                 className={cn(
-                  "size-7 rounded-full border-2 transition-transform duration-150",
+                  "size-7 rounded-full border-2 transition-transform duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-popover",
                   color === c ? "scale-110 border-white/70" : "border-transparent"
                 )}
                 style={{ backgroundColor: c }}
@@ -197,8 +237,10 @@ function ProjectModalForm({
                 key={i}
                 type="button"
                 onClick={() => setIcon(i)}
+                aria-label={`Ícone ${i}`}
+                aria-pressed={icon === i}
                 className={cn(
-                  "flex items-center justify-center rounded-lg border p-2 transition-colors duration-150",
+                  "flex items-center justify-center rounded-lg border p-2 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                   icon === i
                     ? "border-primary/60 bg-primary/15 text-primary"
                     : "border-border/60 text-muted-foreground hover:border-primary/30"
