@@ -3,8 +3,8 @@
 // Mutações de lançamentos com UI otimista: a lista exibida reflete a mudança
 // imediatamente (useOptimistic) enquanto a Server Action roda em segundo plano;
 // quando o servidor revalida, as props novas substituem o estado otimista.
-// Compartilhado por TransactionKindTab e TransactionsTab para não duplicar os
-// handlers (individuais, em massa e desfazer) nos dois containers.
+// Usado por TransactionKindTab (Recebimentos/Despesas) para concentrar os
+// handlers (individuais, em massa e desfazer) num lugar só.
 
 import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
@@ -18,7 +18,9 @@ import {
   markManyFinanceTransactionsUnpaid,
   revertFinanceTransactionsStatus,
   updateFinanceTransactionCategory,
+  updateFinanceTransactionFields,
   updateFinanceTransactionStatus,
+  type TransactionFieldsPatch,
 } from "@/lib/finance/actions";
 import type { Transaction, TransactionStatus } from "@/lib/finance/types";
 
@@ -101,6 +103,19 @@ export function useTransactionMutations(transactions: Transaction[], itemLabel =
         await updateFinanceTransactionCategory(id, category);
       } catch {
         toast.error("Não foi possível atualizar a categoria.");
+      }
+    });
+  }
+
+  /** Edição inline de campos simples (descrição, valor, vencimento, cliente, escopo, tipo). */
+  function changeFields(id: string, patch: TransactionFieldsPatch, successMessage?: string) {
+    startTransition(async () => {
+      applyOptimistic({ type: "update", id, changes: patch as Partial<Transaction> });
+      try {
+        await updateFinanceTransactionFields(id, patch);
+        if (successMessage) toast.success(successMessage);
+      } catch {
+        toast.error("Não foi possível salvar a alteração.");
       }
     });
   }
@@ -193,6 +208,7 @@ export function useTransactionMutations(transactions: Transaction[], itemLabel =
     isPending,
     changeStatus,
     changeCategory,
+    changeFields,
     duplicate,
     remove,
     cancelCharge,

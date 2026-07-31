@@ -77,7 +77,11 @@ export type Transaction = {
   reminderId: string | null;
   /** Se esta transação foi gerada automaticamente a partir de uma recorrente. */
   originTransactionId: string | null;
-  /** Lançamento do ledger GOON — isolado do financeiro principal (Visão Geral, DRE, Clientes, Recebimentos/Despesas/Tudo). */
+  /**
+   * Lançamento do antigo ledger GOON (aba removida da UI). Continua excluído
+   * de todos os totais/listas do financeiro principal; dados antigos permanecem
+   * no banco.
+   */
   isGoon: boolean;
   createdAt: string;
   updatedAt: string;

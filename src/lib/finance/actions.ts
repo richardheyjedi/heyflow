@@ -89,6 +89,40 @@ export async function updateFinanceTransaction(id: string, input: TransactionInp
   revalidateFinance();
 }
 
+/** Campos simples editáveis direto na tabela (estilo planilha) — subconjunto de TransactionInput. */
+export type TransactionFieldsPatch = Partial<{
+  kind: TransactionKind;
+  scope: OwnerScope;
+  description: string;
+  amountCents: number;
+  clientId: string | null;
+  dueDate: string;
+}>;
+
+/** Usada pela edição inline (estilo planilha): atualiza só os campos presentes no patch. */
+export async function updateFinanceTransactionFields(id: string, patch: TransactionFieldsPatch) {
+  const data: Record<string, unknown> = {};
+
+  if (patch.description !== undefined) {
+    const trimmed = patch.description.trim();
+    if (!trimmed) throw new Error("Descrição não pode ser vazia.");
+    data.description = trimmed;
+  }
+  if (patch.amountCents !== undefined) {
+    if (patch.amountCents <= 0) throw new Error("O valor deve ser maior que zero.");
+    data.amountCents = patch.amountCents;
+  }
+  if (patch.dueDate !== undefined) data.dueDate = new Date(patch.dueDate);
+  if (patch.kind !== undefined) data.kind = patch.kind;
+  if (patch.scope !== undefined) data.scope = patch.scope;
+  if (patch.clientId !== undefined) data.clientId = patch.clientId;
+
+  if (Object.keys(data).length === 0) return;
+
+  await prisma.financeTransaction.update({ where: { id }, data });
+  revalidateFinance();
+}
+
 export async function deleteFinanceTransaction(id: string) {
   await prisma.financeTransaction.delete({ where: { id } });
   revalidateFinance();
@@ -129,7 +163,21 @@ async function applyMarkPaid(id: string): Promise<string | null> {
     data: { status: "pago", paidAt: new Date() },
   });
 
+  const originId = transaction.originTransactionId ?? transaction.id;
+
   if (transaction.recurrenceFrequency && transaction.recurrenceNextDate) {
+    // Desmarcar e marcar como pago de novo não deve duplicar a próxima
+    // ocorrência: se ela já existe (mesma origem + vencimento) e não foi paga,
+    // não cria outra.
+    const existingNext = await prisma.financeTransaction.findFirst({
+      where: {
+        originTransactionId: originId,
+        dueDate: transaction.recurrenceNextDate,
+        status: { not: "pago" },
+      },
+    });
+    if (existingNext) return null;
+
     const followingDate = computeNextRecurrenceDate(transaction.recurrenceNextDate, {
       frequency: transaction.recurrenceFrequency,
       interval: transaction.recurrenceInterval ?? 1,
@@ -150,7 +198,7 @@ async function applyMarkPaid(id: string): Promise<string | null> {
         recurrenceFrequency: transaction.recurrenceFrequency,
         recurrenceInterval: transaction.recurrenceInterval,
         recurrenceNextDate: followingDate,
-        originTransactionId: transaction.originTransactionId ?? transaction.id,
+        originTransactionId: originId,
       },
     });
     return created.id;
@@ -159,6 +207,18 @@ async function applyMarkPaid(id: string): Promise<string | null> {
   // Parcelamento: se restar mais de 1 parcela (incluindo esta que acabou de ser
   // paga), gera a próxima pro mês seguinte já com o contador decrementado.
   if (transaction.installmentsRemaining && transaction.installmentsRemaining > 1) {
+    // Mesma proteção da recorrência: não duplica a próxima parcela ao
+    // desmarcar/marcar como pago de novo.
+    const nextDueDate = addMonths(transaction.dueDate, 1);
+    const existingNext = await prisma.financeTransaction.findFirst({
+      where: {
+        originTransactionId: originId,
+        dueDate: nextDueDate,
+        status: { not: "pago" },
+      },
+    });
+    if (existingNext) return null;
+
     const created = await prisma.financeTransaction.create({
       data: {
         kind: transaction.kind,
@@ -167,12 +227,12 @@ async function applyMarkPaid(id: string): Promise<string | null> {
         amountCents: transaction.amountCents,
         category: transaction.category,
         clientId: transaction.clientId,
-        dueDate: addMonths(transaction.dueDate, 1),
+        dueDate: nextDueDate,
         paidAt: null,
         status: "pendente",
         isGoon: transaction.isGoon,
         installmentsRemaining: transaction.installmentsRemaining - 1,
-        originTransactionId: transaction.originTransactionId ?? transaction.id,
+        originTransactionId: originId,
       },
     });
     return created.id;
@@ -299,9 +359,18 @@ export async function deleteFinanceCategory(id: string) {
 const CLIENT_COLOR_OPTIONS = ["#8B5CF6", "#A855F7", "#C084FC", "#60A5FA", "#F59E0B", "#FB7185"];
 
 export async function createFinanceClient(name: string, kind: OwnerScope) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Nome do cliente não pode ser vazio.");
+
+  // Evita duplicar clientes/fornecedores pelo nome (mesma regra das categorias),
+  // ignorando maiúsculas/minúsculas — SQLite não tem busca case-insensitive no Prisma.
+  const clients = await prisma.financeClient.findMany();
+  const existing = clients.find((c) => c.name.trim().toLowerCase() === trimmed.toLowerCase());
+  if (existing) return toDomainClient(existing);
+
   const color = CLIENT_COLOR_OPTIONS[Math.floor(Math.random() * CLIENT_COLOR_OPTIONS.length)];
   const client = await prisma.financeClient.create({
-    data: { name: name.trim(), kind, color },
+    data: { name: trimmed, kind, color },
   });
   revalidateFinance();
   return toDomainClient(client);
@@ -390,6 +459,16 @@ export async function removeFinanceBudget(group: CategoryGroup) {
 // estatísticas de cliente seguem dependendo deles. Idempotente: fechar o
 // mesmo mês de novo apenas retorna o snapshot existente (sem excluir de novo).
 // ---------------------------------------------------------------------------
+
+/**
+ * Reabre um mês fechado: apaga o snapshot, permitindo fechar de novo.
+ * As despesas avulsas descartadas no fechamento NÃO voltam — o snapshot é só
+ * o registro dos totais; a exclusão delas é irreversível.
+ */
+export async function deleteFinanceMonthClosure(id: string) {
+  await prisma.financeMonthClosure.delete({ where: { id } });
+  revalidateFinance();
+}
 
 export async function closeFinanceMonth(referenceDateISO?: string) {
   const referenceDate = referenceDateISO ? new Date(referenceDateISO) : new Date();

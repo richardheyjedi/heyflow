@@ -38,12 +38,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/taskflow/empty-state";
 import { CategoryBadge } from "@/components/finance/category-badge";
 import type { TransactionMutations } from "@/components/finance/use-transaction-mutations";
-import { formatCurrencyBRL, getClientName, isTransactionOverdue } from "@/lib/finance/calculations";
+import { toast } from "sonner";
+import {
+  centsToInputValue,
+  formatCurrencyBRL,
+  getClientName,
+  inputValueToCents,
+  isTransactionOverdue,
+} from "@/lib/finance/calculations";
 import { cn } from "@/lib/utils";
-import type { Category, Client, Transaction, TransactionStatus } from "@/lib/finance/types";
+import type { Category, Client, OwnerScope, Transaction, TransactionStatus } from "@/lib/finance/types";
 
 const STATUS_LABEL: Record<TransactionStatus, string> = {
   pago: "Pago",
@@ -101,6 +109,10 @@ export function TransactionTable({
   const categoryItems: Record<string, string> = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.name, c.name])),
     [categories]
+  );
+  const clientItems: Record<string, string> = useMemo(
+    () => ({ none: "Sem cliente/fornecedor", ...Object.fromEntries(clients.map((c) => [c.id, c.name])) }),
+    [clients]
   );
 
   const sorted = useMemo(() => {
@@ -188,14 +200,11 @@ export function TransactionTable({
                   />
                 </td>
                 <td className="whitespace-nowrap border-b border-border/40 px-3 py-2">
-                  <button
-                    onClick={() => onEdit(transaction)}
-                    className="max-w-56 truncate text-left font-medium text-foreground hover:underline"
-                    title={transaction.description}
-                  >
-                    {transaction.kind === "despesa" ? "− " : "+ "}
-                    {transaction.description}
-                  </button>
+                  <InlineTextCell
+                    value={transaction.description}
+                    prefix={transaction.kind === "despesa" ? "− " : "+ "}
+                    onSave={(value) => mutations.changeFields(transaction.id, { description: value })}
+                  />
                   <span className="ml-1 inline-flex items-center gap-1 align-middle text-muted-foreground">
                     {transaction.recurrence && <Repeat className="size-3" />}
                     {transaction.installmentsRemaining != null && (
@@ -231,10 +240,16 @@ export function TransactionTable({
                   </Select>
                 </td>
                 <td className="whitespace-nowrap border-b border-border/40 px-3 py-2 text-muted-foreground">
-                  <div className={cn("flex items-center gap-1", overdue && "font-medium text-priority-urgent")}>
-                    {overdue && <AlertTriangle className="size-3" />}
-                    {format(parseISO(transaction.dueDate), "dd MMM", { locale: ptBR })}
-                  </div>
+                  <InlineDateCell
+                    value={transaction.dueDate}
+                    onSave={(value) => mutations.changeFields(transaction.id, { dueDate: value })}
+                    display={
+                      <div className={cn("flex items-center gap-1", overdue && "font-medium text-priority-urgent")}>
+                        {overdue && <AlertTriangle className="size-3" />}
+                        {format(parseISO(transaction.dueDate), "dd MMM", { locale: ptBR })}
+                      </div>
+                    }
+                  />
                   {transaction.paidAt && (
                     <div className="text-[11px]">Pago {format(parseISO(transaction.paidAt), "dd MMM", { locale: ptBR })}</div>
                   )}
@@ -246,7 +261,10 @@ export function TransactionTable({
                     transaction.kind === "receita" ? "text-primary" : "text-foreground"
                   )}
                 >
-                  {formatCurrencyBRL(transaction.amountCents)}
+                  <InlineAmountCell
+                    amountCents={transaction.amountCents}
+                    onSave={(cents) => mutations.changeFields(transaction.id, { amountCents: cents })}
+                  />
                 </td>
                 <td className="whitespace-nowrap border-b border-border/40 px-3 py-2">
                   <Select
@@ -276,8 +294,40 @@ export function TransactionTable({
                   </Select>
                 </td>
                 <td className="whitespace-nowrap border-b border-border/40 px-3 py-2 text-muted-foreground">
-                  <span className="mr-1.5 rounded-full bg-muted/50 px-1.5 py-0.5 text-[10px]">{transaction.scope}</span>
-                  {clientName ?? "—"}
+                  <Select
+                    value={transaction.scope}
+                    onValueChange={(v) =>
+                      v && v !== transaction.scope && mutations.changeFields(transaction.id, { scope: v as OwnerScope })
+                    }
+                  >
+                    <SelectTrigger className="mr-1.5 h-auto w-auto gap-0.5 rounded-full border-none bg-muted/50 px-1.5 py-0.5 text-[10px] shadow-none hover:opacity-80 focus-visible:ring-0">
+                      <SelectValue>{transaction.scope}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PF">PF</SelectItem>
+                      <SelectItem value="PJ">PJ</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    items={clientItems}
+                    value={transaction.clientId ?? "none"}
+                    onValueChange={(v) => {
+                      const next = !v || v === "none" ? null : v;
+                      if (next !== transaction.clientId) mutations.changeFields(transaction.id, { clientId: next });
+                    }}
+                  >
+                    <SelectTrigger className="h-auto w-auto gap-1 border-none bg-transparent p-0 text-sm shadow-none hover:opacity-80 focus-visible:ring-0">
+                      <SelectValue>{clientName ?? "—"}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem cliente/fornecedor</SelectItem>
+                      {clients.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </td>
                 <td className="border-b border-border/40 px-2 py-2 text-right">
                   <DropdownMenu>
@@ -286,6 +336,17 @@ export function TransactionTable({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onEdit(transaction)}>Editar</DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          mutations.changeFields(
+                            transaction.id,
+                            { kind: transaction.kind === "receita" ? "despesa" : "receita" },
+                            transaction.kind === "receita" ? "Convertido em despesa." : "Convertido em receita."
+                          )
+                        }
+                      >
+                        {transaction.kind === "receita" ? "Converter em despesa" : "Converter em receita"}
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => mutations.duplicate(transaction.id)}>Duplicar</DropdownMenuItem>
                       {transaction.kind === "receita" && !transaction.reminderId && (
                         <DropdownMenuItem onClick={() => onScheduleCharge(transaction)}>Programar cobrança</DropdownMenuItem>
@@ -333,5 +394,156 @@ export function TransactionTable({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Células editáveis inline (estilo planilha): clique para editar; Enter ou
+// clicar fora salva, Esc cancela. O salvamento é otimista (useTransactionMutations).
+// ---------------------------------------------------------------------------
+
+function InlineTextCell({
+  value,
+  prefix,
+  onSave,
+}: {
+  value: string;
+  prefix: string;
+  onSave: (value: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  function commit() {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === value) return;
+    onSave(trimmed);
+  }
+
+  if (editing) {
+    return (
+      <Input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className="inline-block h-7 w-52 align-middle text-sm"
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={() => {
+        setDraft(value);
+        setEditing(true);
+      }}
+      className="max-w-56 truncate text-left font-medium text-foreground hover:underline"
+      title={`${value} — clique para editar`}
+    >
+      {prefix}
+      {value}
+    </button>
+  );
+}
+
+function InlineAmountCell({ amountCents, onSave }: { amountCents: number; onSave: (cents: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  function commit() {
+    setEditing(false);
+    const cents = inputValueToCents(draft);
+    if (cents === amountCents) return;
+    if (cents <= 0) {
+      toast.error("Informe um valor válido.");
+      return;
+    }
+    onSave(cents);
+  }
+
+  if (editing) {
+    return (
+      <Input
+        autoFocus
+        inputMode="decimal"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className="inline-block h-7 w-28 text-right align-middle text-sm"
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={() => {
+        setDraft(centsToInputValue(amountCents));
+        setEditing(true);
+      }}
+      className="hover:underline"
+      title="Clique para editar o valor"
+    >
+      {formatCurrencyBRL(amountCents)}
+    </button>
+  );
+}
+
+function InlineDateCell({
+  value,
+  display,
+  onSave,
+}: {
+  /** ISO yyyy-MM-dd. */
+  value: string;
+  display: React.ReactNode;
+  onSave: (value: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  function commit() {
+    setEditing(false);
+    if (!draft || draft === value) return;
+    onSave(draft);
+  }
+
+  if (editing) {
+    return (
+      <Input
+        autoFocus
+        type="date"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className="inline-block h-7 w-36 align-middle text-xs"
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={() => {
+        setDraft(value);
+        setEditing(true);
+      }}
+      className="hover:underline"
+      title="Clique para editar o vencimento"
+    >
+      {display}
+    </button>
   );
 }

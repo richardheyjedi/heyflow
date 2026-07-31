@@ -190,7 +190,7 @@ export function TransactionKindTab({
         editing={editingTransaction}
         clients={clients}
         categories={categories}
-        defaults={{ kind, scope: "PJ", isGoon: false }}
+        defaults={{ kind, scope: "PJ" }}
         onClose={() => setIsFormOpen(false)}
       />
       <ScheduleChargeDialog transaction={chargeTarget} clients={clients} onClose={() => setChargeTarget(null)} />

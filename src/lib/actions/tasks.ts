@@ -95,25 +95,41 @@ export async function toggleTaskDone(id: string) {
 
   if (isNowDone && task.recurrenceRule && task.dueDate) {
     const nextDueDate = computeNextOccurrence(task.dueDate, task.recurrenceRule);
-    const [subtasks, tags] = await Promise.all([
-      prisma.subtask.findMany({ where: { taskId: id }, orderBy: { order: "asc" } }),
-      prisma.taskTag.findMany({ where: { taskId: id } }),
-    ]);
 
-    await prisma.task.create({
-      data: {
+    // Desmarcar e concluir de novo (ou clique duplo) não deve duplicar a
+    // próxima ocorrência: se uma idêntica ainda aberta já existe, não cria outra.
+    const existingNext = await prisma.task.findFirst({
+      where: {
         title: task.title,
-        description: task.description,
-        projectId: task.projectId,
-        status: "todo",
-        priority: task.priority,
+        recurrenceRule: task.recurrenceRule,
         dueDate: nextDueDate,
         dueTime: task.dueTime,
-        recurrenceRule: task.recurrenceRule,
-        subtasks: { create: subtasks.map((s, i) => ({ title: s.title, done: false, order: i })) },
-        tags: { create: tags.map((t) => ({ tagId: t.tagId })) },
+        projectId: task.projectId,
+        status: { not: "done" },
       },
     });
+
+    if (!existingNext) {
+      const [subtasks, tags] = await Promise.all([
+        prisma.subtask.findMany({ where: { taskId: id }, orderBy: { order: "asc" } }),
+        prisma.taskTag.findMany({ where: { taskId: id } }),
+      ]);
+
+      await prisma.task.create({
+        data: {
+          title: task.title,
+          description: task.description,
+          projectId: task.projectId,
+          status: "todo",
+          priority: task.priority,
+          dueDate: nextDueDate,
+          dueTime: task.dueTime,
+          recurrenceRule: task.recurrenceRule,
+          subtasks: { create: subtasks.map((s, i) => ({ title: s.title, done: false, order: i })) },
+          tags: { create: tags.map((t) => ({ tagId: t.tagId })) },
+        },
+      });
+    }
   }
 
   if (isNowDone) {

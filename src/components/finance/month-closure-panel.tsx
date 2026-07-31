@@ -1,10 +1,10 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarCheck, Loader2, Lock } from "lucide-react";
+import { CalendarCheck, Loader2, Lock, LockOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { closeFinanceMonth } from "@/lib/finance/actions";
+import { closeFinanceMonth, deleteFinanceMonthClosure } from "@/lib/finance/actions";
 import { formatCurrencyBRL } from "@/lib/finance/calculations";
 import type { MonthClosure } from "@/lib/finance/types";
 
@@ -27,6 +27,7 @@ function monthLabel(monthKey: string): string {
 
 export function MonthClosurePanel({ closures, todayISO }: { closures: MonthClosure[]; todayISO: string }) {
   const [isPending, startTransition] = useTransition();
+  const [reopenTarget, setReopenTarget] = useState<MonthClosure | null>(null);
   const currentMonthKey = todayISO.slice(0, 7);
   const currentAlreadyClosed = closures.some((c) => c.monthKey === currentMonthKey);
 
@@ -37,6 +38,17 @@ export function MonthClosurePanel({ closures, todayISO }: { closures: MonthClosu
         toast.success(`${monthLabel(closure.monthKey)} fechado com sucesso.`);
       } catch {
         toast.error("Algo deu errado ao virar o mês.");
+      }
+    });
+  }
+
+  function handleReopen(closure: MonthClosure) {
+    startTransition(async () => {
+      try {
+        await deleteFinanceMonthClosure(closure.id);
+        toast.success(`${monthLabel(closure.monthKey)} reaberto.`);
+      } catch {
+        toast.error("Não foi possível reabrir o mês.");
       }
     });
   }
@@ -84,7 +96,7 @@ export function MonthClosurePanel({ closures, todayISO }: { closures: MonthClosu
       {closures.length > 0 && (
         <div className="mt-4 flex flex-col gap-1.5 border-t border-border/60 pt-4">
           {closures.slice(0, 6).map((closure) => (
-            <div key={closure.id} className="flex items-center justify-between gap-3 text-xs">
+            <div key={closure.id} className="group flex items-center justify-between gap-3 text-xs">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Lock className="size-3" />
                 {monthLabel(closure.monthKey)}
@@ -98,11 +110,46 @@ export function MonthClosurePanel({ closures, todayISO }: { closures: MonthClosu
                 >
                   {formatCurrencyBRL(closure.saldoCents)}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setReopenTarget(closure)}
+                  disabled={isPending}
+                  title="Reabrir mês (exclui o snapshot)"
+                  className="flex size-5 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                >
+                  <LockOpen className="size-3" />
+                </button>
               </span>
             </div>
           ))}
         </div>
       )}
+
+      <AlertDialog open={reopenTarget !== null} onOpenChange={(open) => !open && setReopenTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Reabrir {reopenTarget ? monthLabel(reopenTarget.monthKey) : ""}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              O snapshot com os totais congelados deste mês será excluído do histórico e você poderá virar o mês de
+              novo. As despesas avulsas descartadas no fechamento não voltam.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (reopenTarget) handleReopen(reopenTarget);
+                setReopenTarget(null);
+              }}
+              className="bg-gradient-violet text-white"
+            >
+              Reabrir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
