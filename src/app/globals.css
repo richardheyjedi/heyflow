@@ -58,85 +58,58 @@
   --color-priority-low: var(--priority-low);
 }
 
+/*
+ * Redesign "marketplace claro" (referência: sistema Airbnb, com roxo no lugar
+ * do Rausch): canvas branco puro, texto "ink" #222, UMA cor de marca (roxo
+ * #7c3aed) usada com parcimônia — CTAs primários, estados salvos e o anel de
+ * foco. Hairlines cinza (#dddddd/#ebebeb) no lugar de bordas translúcidas,
+ * uma única camada de sombra e cantos suaves (botões ~8px, cards ~14-18px,
+ * pills totalmente redondas). Sem dark mode — como a referência.
+ */
 :root {
-  --background: #0b0910;
-  --foreground: #f3f1f8;
-  --card: #121018;
-  --card-foreground: #f3f1f8;
-  --popover: #161320;
-  --popover-foreground: #f3f1f8;
-  --primary: #8b5cf6;
-  --primary-foreground: #fbfaff;
-  --secondary: #1c1926;
-  --secondary-foreground: #f3f1f8;
-  --muted: #17141f;
-  --muted-foreground: #9891a8;
-  --accent: #1f1a2e;
-  --accent-foreground: #c084fc;
-  --destructive: #fb7185;
-  --destructive-foreground: #2a0a10;
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 10%);
-  --ring: #a855f7;
+  --background: #ffffff; /* canvas */
+  --foreground: #222222; /* ink */
+  --card: #ffffff;
+  --card-foreground: #222222;
+  --popover: #ffffff;
+  --popover-foreground: #222222;
+  --primary: #7c3aed; /* a única "voltagem" da marca (no lugar do Rausch) */
+  --primary-foreground: #ffffff;
+  --secondary: #f7f7f7; /* surface-soft */
+  --secondary-foreground: #222222;
+  --muted: #f7f7f7;
+  --muted-foreground: #6a6a6a;
+  --accent: #f2f2f2; /* surface-strong */
+  --accent-foreground: #222222;
+  --destructive: #c13515; /* vermelho de erro da referência (≠ cor de marca) */
+  --destructive-foreground: #ffffff;
+  --border: #dddddd; /* hairline */
+  --input: #dddddd;
+  --ring: #7c3aed;
   --chart-1: #7c3aed;
   --chart-2: #a855f7;
-  --chart-3: #c084fc;
-  --chart-4: #5b21b6;
-  --chart-5: #ddd6fe;
-  --radius: 0.85rem;
-  --sidebar: #0d0b12;
-  --sidebar-foreground: #f3f1f8;
-  --sidebar-primary: #8b5cf6;
-  --sidebar-primary-foreground: #fbfaff;
-  --sidebar-accent: #1c1730;
-  --sidebar-accent-foreground: #c084fc;
-  --sidebar-border: oklch(1 0 0 / 7%);
-  --sidebar-ring: #a855f7;
+  --chart-3: #5b21b6;
+  --chart-4: #c084fc;
+  --chart-5: #4c1d95;
+  --radius: 0.625rem; /* md = 8px (botões), 2xl ≈ 18px (cards) */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #222222;
+  --sidebar-primary: #7c3aed;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f7f7f7;
+  --sidebar-accent-foreground: #7c3aed;
+  --sidebar-border: #ebebeb; /* hairline-soft */
+  --sidebar-ring: #7c3aed;
 
   --brand-violet: #7c3aed;
-  --brand-purple: #a855f7;
-  --brand-glow: #c084fc;
-  --priority-urgent: #fb7185;
-  --priority-high: #fb923c;
-  --priority-medium: #f59e0b;
-  --priority-low: #7c93b3;
+  --brand-purple: #6d28d9; /* estado ativo/pressionado */
+  --brand-glow: #ddd6fe; /* tinta clara (disabled/realces) */
+  --priority-urgent: #e11d48;
+  --priority-high: #ea580c;
+  --priority-medium: #d97706;
+  --priority-low: #64748b;
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-}
-
-.dark {
-  --background: #0b0910;
-  --foreground: #f3f1f8;
-  --card: #121018;
-  --card-foreground: #f3f1f8;
-  --popover: #161320;
-  --popover-foreground: #f3f1f8;
-  --primary: #8b5cf6;
-  --primary-foreground: #fbfaff;
-  --secondary: #1c1926;
-  --secondary-foreground: #f3f1f8;
-  --muted: #17141f;
-  --muted-foreground: #9891a8;
-  --accent: #1f1a2e;
-  --accent-foreground: #c084fc;
-  --destructive: #fb7185;
-  --destructive-foreground: #2a0a10;
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 10%);
-  --ring: #a855f7;
-  --chart-1: #7c3aed;
-  --chart-2: #a855f7;
-  --chart-3: #c084fc;
-  --chart-4: #5b21b6;
-  --chart-5: #ddd6fe;
-  --sidebar: #0d0b12;
-  --sidebar-foreground: #f3f1f8;
-  --sidebar-primary: #8b5cf6;
-  --sidebar-primary-foreground: #fbfaff;
-  --sidebar-accent: #1c1730;
-  --sidebar-accent-foreground: #c084fc;
-  --sidebar-border: oklch(1 0 0 / 7%);
-  --sidebar-ring: #a855f7;
+  --font-sans: var(--font-inter), Circular, -apple-system, system-ui, Roboto, "Helvetica Neue", sans-serif;
 }
 
 @layer base {
@@ -146,51 +119,58 @@
 
   body {
     @apply bg-background text-foreground;
-    background-image:
-      radial-gradient(60rem 40rem at 12% -10%, rgba(124, 58, 237, 0.16), transparent 60%),
-      radial-gradient(50rem 34rem at 110% 10%, rgba(168, 85, 247, 0.12), transparent 55%),
-      radial-gradient(40rem 30rem at 50% 120%, rgba(192, 132, 252, 0.08), transparent 60%);
-    background-attachment: fixed;
-    background-repeat: no-repeat;
   }
 
   html {
     @apply font-sans;
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   ::selection {
-    background: rgba(168, 85, 247, 0.35);
-    color: #fff;
+    background: rgba(124, 58, 237, 0.18);
   }
 }
 
 @layer utilities {
   .glass-surface {
-    background-color: color-mix(in oklch, var(--card) 88%, transparent);
+    background-color: color-mix(in oklch, var(--card) 92%, transparent);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
   }
 
+  /* Única camada de sombra do sistema (cards flutuantes, dropdowns, barra de busca). */
   .glow-violet {
     box-shadow:
-      0 0 0 1px rgba(139, 92, 246, 0.16),
-      0 10px 34px -10px rgba(139, 92, 246, 0.55);
+      rgba(0, 0, 0, 0.02) 0 0 0 1px,
+      rgba(0, 0, 0, 0.04) 0 2px 6px 0,
+      rgba(0, 0, 0, 0.1) 0 4px 8px 0;
   }
 
   .glow-violet-sm {
-    box-shadow: 0 6px 22px -8px rgba(168, 85, 247, 0.4);
+    box-shadow:
+      rgba(0, 0, 0, 0.02) 0 0 0 1px,
+      rgba(0, 0, 0, 0.04) 0 2px 6px 0,
+      rgba(0, 0, 0, 0.1) 0 4px 8px 0;
   }
 
+  /* Títulos voltam a ser "ink" — a referência confia no texto escuro e reserva
+     a cor de marca para CTAs. (Mantém o nome da classe para não tocar em todo
+     componente.) */
   .text-gradient-violet {
-    background-image: linear-gradient(90deg, #a855f7, #c084fc);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    background-image: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    color: var(--foreground);
   }
 
+  /* CTA primário chapado — sem gradiente, como o botão primário da referência. */
   .bg-gradient-violet {
-    background-image: linear-gradient(135deg, #7c3aed, #a855f7);
+    background-image: none;
+    background-color: var(--primary);
+  }
+
+  .bg-gradient-violet:hover {
+    background-color: var(--brand-purple);
   }
 
   @keyframes fade-slide-in {
