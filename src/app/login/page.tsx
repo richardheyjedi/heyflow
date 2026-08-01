@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { Lock } from "lucide-react";
+import { LayoutGrid } from "lucide-react";
 import { login } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -22,10 +22,10 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-6 rounded-2xl border border-border/60 bg-card/60 p-8 shadow-2xl backdrop-blur-xl">
         <div className="flex flex-col items-center gap-3 text-center">
           <span className="flex size-12 items-center justify-center rounded-xl bg-gradient-violet text-white">
-            <Lock className="size-5" />
+            <LayoutGrid className="size-5" />
           </span>
           <div>
-            <h1 className="text-lg font-semibold text-foreground">Heyflow</h1>
+            <h1 className="text-lg font-semibold text-foreground">GESTÃO HEY</h1>
             <p className="text-sm text-muted-foreground">Digite a senha para continuar.</p>
           </div>
         </div>
