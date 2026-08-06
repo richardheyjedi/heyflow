@@ -30,6 +30,9 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${interSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: "try { if (localStorage.getItem('hey-theme') === 'dark') document.documentElement.classList.add('dark'); } catch {}" }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <TooltipProvider delay={200}>
           {children}

@@ -112,6 +112,41 @@
   --font-sans: var(--font-inter), Circular, -apple-system, system-ui, Roboto, "Helvetica Neue", sans-serif;
 }
 
+.dark {
+  --background: #171717;
+  --foreground: #f5f5f5;
+  --card: #202020;
+  --card-foreground: #f5f5f5;
+  --popover: #252525;
+  --popover-foreground: #f5f5f5;
+  --primary: #a78bfa;
+  --primary-foreground: #171717;
+  --secondary: #292929;
+  --secondary-foreground: #f5f5f5;
+  --muted: #292929;
+  --muted-foreground: #a3a3a3;
+  --accent: #303030;
+  --accent-foreground: #ffffff;
+  --border: #3b3b3b;
+  --input: #484848;
+  --ring: #a78bfa;
+  --sidebar: #1b1b1b;
+  --sidebar-foreground: #f5f5f5;
+  --sidebar-primary: #a78bfa;
+  --sidebar-primary-foreground: #171717;
+  --sidebar-accent: #2a2a2a;
+  --sidebar-accent-foreground: #c4b5fd;
+  --sidebar-border: #333333;
+  --sidebar-ring: #a78bfa;
+  --brand-violet: #a78bfa;
+  --brand-purple: #8b5cf6;
+  --brand-glow: #4c1d95;
+  --priority-urgent: #fb7185;
+  --priority-high: #fb923c;
+  --priority-medium: #fbbf24;
+  --priority-low: #94a3b8;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

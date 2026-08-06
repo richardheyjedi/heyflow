@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getNotifications } from "@/lib/data/notifications";
 import { logout } from "@/lib/auth/actions";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export async function Topbar() {
   const notifications = await getNotifications();
@@ -20,6 +21,7 @@ export async function Topbar() {
       <MobileMenuButton />
       <GlobalSearch />
       <div className="ml-auto flex items-center gap-3">
+        <ThemeToggle />
         <NotificationsDropdown notifications={notifications} />
         <DropdownMenu>
           <DropdownMenuTrigger render={<button className="rounded-full" />}>

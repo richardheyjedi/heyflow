@@ -74,6 +74,15 @@ enum ProjectType {
   pessoal
 }
 
+enum LeadStage {
+  novo
+  contato
+  proposta
+  negociacao
+  fechado_ganho
+  fechado_perdido
+}
+
 model Project {
   id          String      @id @default(cuid())
   name        String
@@ -265,4 +274,23 @@ model FinanceMonthClosure {
   pendingCount         Int
 
   @@map("finance_month_closures")
+}
+
+model Lead {
+  id          String    @id @default(cuid())
+  name        String
+  company     String?
+  email       String?
+  phone       String?
+  source      String?
+  stage       LeadStage @default(novo)
+  valueCents  Int       @default(0)
+  notes       String?
+  nextContact DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([stage])
+  @@index([nextContact])
+  @@map("leads")
 }

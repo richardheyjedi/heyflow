@@ -15,6 +15,7 @@ import {
   LayoutGrid,
   Star,
   Wallet,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/store/ui-store";
@@ -54,6 +55,7 @@ const NAV_ITEMS = [
   { href: "/semana", label: "Semana", icon: CalendarRange },
   { href: "/mes", label: "Mês", icon: Calendar },
   { href: "/financeiro", label: "Financeiro", icon: Wallet },
+  { href: "/crm", label: "CRM", icon: UsersRound },
 ];
 
 export function Sidebar({ projects }: { projects: (Project & { pendingCount: number })[] }) {
