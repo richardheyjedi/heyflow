@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "node scripts/turso-migrate.mjs && next build",
     "db:migrate:turso": "node scripts/turso-migrate.mjs",
     "start": "next start",
     "lint": "eslint",
